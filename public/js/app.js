@@ -15,66 +15,11 @@ window.addEventListener('DOMContentLoaded', function() {
     return el.addEventListener(ev, fn, false);
   }
 
-  function set_map_fill(id, fill) {
-    if (!E.svg || !id.match(/^[A-Z][A-Z]$/)) {
-      return;
-    }
-
-    var el = E.svg.getElementById(id);
-    if (!el) {
-      return;
-    }
-
-    el.style.fill = fill;
-  }
-
-  var make_table = (function() {
-    var COLS = [{
-      src: 'date',
-      dst: 'Date',
-      css: 'date',
-    }, {
-      src: 'confirmed',
-      dst: 'Confirmed',
-      css: 'num',
-    }, {
-      src: 'deaths',
-      dst: 'Deaths',
-      css: 'num',
-    }, {
-      src: 'recovered',
-      dst: 'Recovered',
-      css: 'num',
-    }];
-
-    return function(id) {
-      if (!DATA || !DATA.data[id]) {
-        return '';
-      }
-
-      return '<table><thead><tr>' + COLS.map(function(col) {
-        return '<th>' + col.dst + '</th>';
-      }).join('') + '</thead><tbody>' + DATA.data[id].map(function(row) {
-        return '<tr>' + COLS.map(function(col) {
-          return '<td class="' + col.css + '">' + row[col.src] + '</td>';
-        }).join('') + '</tr>';
-      }).join('') + '</tbody></table>';
-    };
-  })();
-
   var States = (function() {
     var FLAGS = {};
 
-    var PALETTE = {
-      none:         '',
-      active:       '#0fa',
-      hover:        '#0af',
-      active_hover: '#af0',
-    };
-
-    var ehs = {
-      change: [],
-    };
+    // internal event listeners
+    var ehs = {};
 
     function fire(ev, args) {
       if (ehs[ev]) {
@@ -86,7 +31,11 @@ window.addEventListener('DOMContentLoaded', function() {
 
     return {
       on: function(ev, fn) {
-        ehs[ev] = (ehs[ev] ? ehs[ev] : []).concat(fn);
+        if (ehs[ev]) {
+          ehs[ev].push(fn);
+        } else {
+          ehs[ev] = [fn];
+        }
       },
 
       get_flags: function(id) {
@@ -123,23 +72,106 @@ window.addEventListener('DOMContentLoaded', function() {
 
         fire('change', [id]);
       },
-
-      get_color: function(id) {
-        var flags = [].concat(FLAGS[id] || []);
-        flags.sort();
-        return PALETTE[(flags.length > 0) ? flags.join('_') : 'none'];
-      },
     };
   })();
+
+  var View = {
+    map: {
+      get_style: (function() {
+        var PALETTE = {
+          none: {
+            fill: '',
+            stroke: '',
+            strokeColor: 'black',
+          },
+
+          active: {
+            fill: '#0af',
+            stroke: '',
+            strokeWidth: '',
+          },
+
+          hover: {
+            fill: '', // '#0af',
+            stroke: '#999',
+            strokeWidth: 2,
+          },
+
+          active_hover: {
+            fill: '#0af', // '#af0',
+            stroke: 'black',
+            strokeWidth: 2,
+          },
+        };
+
+        return function(id) {
+          var flags = States.get_flags(id);
+          flags.sort();
+          return PALETTE[(flags.length > 0) ? flags.join('_') : 'none'];
+        };
+      })(),
+
+      set_style: function(id, s) {
+        if (!E.svg || !id.match(/^[A-Z][A-Z]$/)) {
+          return;
+        }
+
+        var el = E.svg.getElementById(id);
+        if (!el) {
+          return;
+        }
+
+        for (var k in s) {
+          el.style[k] = s[k];
+        }
+      },
+    },
+
+    html: {
+      make_table: (function() {
+        var COLS = [{
+          src: 'date',
+          dst: 'Date',
+          css: 'date',
+        }, {
+          src: 'confirmed',
+          dst: 'Confirmed',
+          css: 'num',
+        }, {
+          src: 'deaths',
+          dst: 'Deaths',
+          css: 'num',
+        }, {
+          src: 'recovered',
+          dst: 'Recovered',
+          css: 'num',
+        }];
+
+        return function(id) {
+          if (!DATA || !DATA.data[id]) {
+            return '';
+          }
+
+          return '<table><thead><tr>' + COLS.map(function(col) {
+            return '<th>' + col.dst + '</th>';
+          }).join('') + '</thead><tbody>' + DATA.data[id].map(function(row) {
+            return '<tr>' + COLS.map(function(col) {
+              return '<td class="' + col.css + '">' + row[col.src] + '</td>';
+            }).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
+        };
+      })(),
+    },
+  };
 
   // bind to change event
   States.on('change', function(id) {
     var has_flags = States.get_flags(id).length > 0;
-    E.data.innerHTML = has_flags ? make_table(id) : '';
-    set_map_fill(id, States.get_color(id));
+    E.data.innerHTML = has_flags ? View.html.make_table(id) : '';
+    View.map.set_style(id, View.map.get_style(id));
   });
 
-  // event handlers
+  // dom event handlers
   var EHS = {
     // map event handlers
     map: {

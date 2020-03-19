@@ -7,6 +7,20 @@
 
 .state {fill:#D3D3D3;}
 
+.active {
+  fill: #0af;
+}
+
+.hover {
+  stroke: #999;
+  stroke-width: 3;
+}
+
+.active.hover {
+  fill: #0af;
+  stroke: black;
+  stroke-width: 3;
+}
 
 /*
 The .state class sets the default fill color for all states.
