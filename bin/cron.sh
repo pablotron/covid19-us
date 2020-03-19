@@ -18,7 +18,7 @@ set -eu
 
 # update CSSE data repo
 cd "$COVID19_US_DIR/data/csse-daily/"
-git pull
+git pull -q
 
 # generate public/data.json.tmp
 cd "$COVID19_US_DIR"
