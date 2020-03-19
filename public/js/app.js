@@ -1,8 +1,10 @@
 window.addEventListener('DOMContentLoaded', function() {
   "use strict";
 
-  var DATA_URL = 'data.json',
-      DATA = null;
+  var DATA = null,
+      DATA_URL = 'data.json?' + (function () {
+        return (new Date()).toISOString().replace(/(T..).+$/, '$1');
+      })();
 
   // cache elements
   var E = ['map', 'data'].reduce(function(r, id) {
