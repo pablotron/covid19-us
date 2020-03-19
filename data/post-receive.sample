@@ -10,7 +10,7 @@
 #  # edit PUBLIC_DIR below
 
 # path to public directory
-PUBLIC_DIR=~/sites/pmdn.org/data/git/covid19-us/public
+PUBLIC_DIR=~/sites/pmdn.org/data/covid19-us/git/covid19-us/public
 
 # fail on error
 set -eu
