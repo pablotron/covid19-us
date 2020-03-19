@@ -9,12 +9,15 @@
 #   
 #  # edit PUBLIC_DIR below
 
-# fail on error
-set -eu
-
 # path to public directory
 PUBLIC_DIR=~/sites/pmdn.org/data/git/covid19-us/public
 
-unset GIT_DIR
+# fail on error
+set -eu
+
+# switch to public repo directory
 cd "$PUBLIC_DIR"
-exec git pull
+unset GIT_DIR
+
+# pull from upstream
+exec git pull origin master
