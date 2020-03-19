@@ -1,0 +1,3 @@
+# set path to live site, then invoke bin/cron.sh
+COVID19_US_DIR=$HOME/sites/pmdn.org/git/covid19-us-live
+@hourly $COVID19_US_DIR/bin/cron.sh

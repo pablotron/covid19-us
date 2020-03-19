@@ -1,18 +1,25 @@
 #!/bin/bash
 
-CSSE_DIR=~/git/COVID-19
-PUBLIC_DIR=~/sites/pmdn.org/data/covid19-us/public
+#
+# Period task to update data for COVID-19 US tool
+#
+# Note: The COVID19_US_PUBLIC_DIR environment variable needs to be set
+# in order for this script to work.
+#
+# Example crontab:
+#   COVID19_US_DIR=~/sites/pmdn.org/git/covid19-us-live
+#   @hourly $COVID19_US_DIR/bin/cron.sh
 
 # exit immediately on error
 set -eu
 
-# update CSSE data repo, then run "bin/gen-data.rb"
-cd "$CSSE_DIR"
+# update CSSE data repo
+cd "$COVID19_US_DIR/data/csse-daily/"
 git pull
 
-# run "bin/gen-data.rb" to generate public/data.json.tmp
-cd "$PUBLIC_DIR"
-../bin/gen-data.rb > ./data.json.tmp
+# generate public/data.json.tmp
+cd "$COVID19_US_DIR"
+./bin/gen-data.rb > ./public/data.json.tmp
 
-# update data.json
-mv data.json{.tmp,}
+# overwrite public/data.json
+mv public/data.json{.tmp,}

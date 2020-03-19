@@ -7,16 +7,17 @@
 #   # copy file into place
 #   cp post-receive.sample path/to/repo.git/hooks/post-receive 
 #   
-#  # edit PUBLIC_DIR below
+#  # edit COVID19_US_LIVE_DIR below
+#
 
 # path to public directory
-PUBLIC_DIR=~/sites/pmdn.org/data/covid19-us/git/covid19-us/public
+COVID19_US_LIVE_DIR=~/sites/pmdn.org/git/covid19-us-live
 
 # fail on error
 set -eu
 
 # switch to public repo directory
-cd "$PUBLIC_DIR"
+cd "$COVID19_US_LIVE_DIR"
 unset GIT_DIR
 
 # pull from upstream
