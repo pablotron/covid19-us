@@ -12,7 +12,7 @@ window.addEventListener('DOMContentLoaded', function() {
     return r;
   }, {});
 
-  // bind handlers to dom events
+  // bind dom event handlers
   function on(el, evs) {
     for (var ev in evs) {
       el.addEventListener(ev, evs[ev], false);
@@ -166,10 +166,10 @@ window.addEventListener('DOMContentLoaded', function() {
   // wait for svg to load
   on(E.map, {
     load: function() {
-      // cache svg doc
+      // cache map svg doc
       E.svg = E.map.contentDocument;
 
-      // bind to events
+      // bind to map events
       on(E.svg, EHS.map);
     },
   });
