@@ -11,17 +11,137 @@
       }
 
       #data th { font-size: 80%; }
+
+      #masks th, #masks caption, #masks td {
+        font-family: verdana, arial, sans-serif;
+      }
+
+      #masks caption { font-size: 80%; font-weight: bold }
+      #masks th { font-size: 80%; text-align: right; }
     </style>
   </head>
 
   <body>
-    <object 
+    <object
       id='map'
       data='us.svg'
       type="image/svg+xml"
       width='800'
       height='495'
     ></object>
+
+    <table id='masks'>
+      <caption>Select States</caption>
+      <tbody>
+        <th>Highest</th>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the highest number of cases per capita.'
+            data-id='per_capita'
+            data-sort='desc'
+          >
+            Per Capita
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the highest number of confirmed cases.'
+            data-id='cases'
+            data-sort='desc'
+          >
+            Cases
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the highest by number of deaths.'
+            data-id='deaths'
+            data-sort='desc'
+          >
+            Deaths
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the highest population.'
+            data-id='population'
+            data-sort='desc'
+          >
+            Population
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>Lowest</th>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the lowest number of cases per capita.'
+            data-id='per_capita'
+            data-sort='asc'
+          >
+            Per Capita
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the lowest number by number of cases.'
+            data-id='cases'
+            data-sort='asc'
+          >
+            Cases
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the lowest number of deaths.'
+            data-id='deaths'
+            data-sort='asc'
+          >
+            Deaths
+          </button>
+        </td>
+
+        <td>
+          <button
+            class='mask'
+            title='Select the 5 states with the lowest populations.'
+            data-id='population'
+            data-sort='asc'
+          >
+            Population
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>&nbsp;</th>
+
+        <td colspan='4'>
+          <button
+            class='mask'
+            title='Clear all selected states.'
+            data-id='none'
+          >
+            Clear Selection
+          </button>
+        </td>
+      </tr>
+    </table>
 
     <div id='charts' style='width: 800px'>
       <canvas
@@ -38,6 +158,7 @@
     </div>
 
     <div id='data'>
+
     </div>
 
     <script type='text/javascript' src='js/chartjs-2.9.3-bundle.min.js'></script>

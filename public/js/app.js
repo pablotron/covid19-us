@@ -31,6 +31,52 @@ window.addEventListener('DOMContentLoaded', function() {
       });
     }
 
+    var FILTERS = {
+      cases: function(id) {
+        var data = DATA.data[id];
+        return data[data.length - 1].confirmed;
+      },
+
+      deaths: function(id) {
+        var data = DATA.data[id];
+        return data[data.length - 1].deaths;
+      },
+
+      population: function(id) {
+        return DATA.states.data[DATA.states.index[id]].population;
+      },
+
+      per_capita: function(id) {
+        var pop = DATA.states.data[DATA.states.index[id]].population,
+            data = DATA.data[id];
+        return Math.round(1000.0 * data[data.length - 1].confirmed / pop);
+      },
+    };
+
+    function get_ids(filter_id, sort) {
+      var factor = (sort == 'asc') ? -1 : 1;
+      var rows = DATA.states.data.map(function(row) {
+        return {
+          id: row.state,
+          val: FILTERS[filter_id](row.state),
+        };
+      });
+
+      rows.sort(function(a, b) {
+        if (a.val > b.val) {
+          return factor * -1;
+        } else if (a.val == b.val) {
+          return factor * ((a.id < b.id) ? 1 : -1);
+        } else {
+          return factor * 1;
+        }
+      });
+
+      return rows.map(function(row) {
+        return row.id;
+      }).slice(0, 5);
+    }
+
     return {
       init: function(url) {
         // fetch data.json
@@ -106,6 +152,38 @@ window.addEventListener('DOMContentLoaded', function() {
         r.sort();
 
         return r;
+      },
+
+      set_filter: function(filter_id, sort) {
+        if (filter_id == 'all') {
+          // add all inactive states
+          States.get_inactive().forEach(function(id) {
+            States.add_flag(id, 'active');
+          });
+        } else if (filter_id == 'none') {
+          // clear all active states
+          States.get_active().forEach(function(id) {
+            States.rm_flag(id, 'active');
+          });
+        } else {
+          // clear all active states
+          States.get_active().forEach(function(id) {
+            States.rm_flag(id, 'active');
+          });
+
+          // get by filter
+          get_ids(filter_id, sort).forEach(function(id) {
+            States.add_flag(id, 'active');
+          });
+        }
+      },
+
+      get_inactive: function() {
+        return DATA.states.data.map(function(row) {
+          return row.state;
+        }).filter(function(id) {
+          return (!FLAGS[id] || (FLAGS[id].indexOf('active') === -1));
+        });
       },
     };
   })();
@@ -231,7 +309,7 @@ window.addEventListener('DOMContentLoaded', function() {
       // hash string to u32.
       // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
       function hash(s) {
-        var r = 3141, l = s.length;
+        var r = 77245, l = s.length;
         for (var i = 0; i < l; i++) {
           var c = s.charCodeAt(i);
           r  = ((hash << 5) - r) + c;
@@ -359,6 +437,20 @@ window.addEventListener('DOMContentLoaded', function() {
         }
       };
     })(),
+
+    masks: {
+      init: function() {
+        var els = document.getElementsByClassName('mask');
+        for (var i = 0; i < els.length; i++) {
+          on(els[i], {
+            click: function(ev) {
+              var data = ev.target.dataset
+              States.set_filter(data.id, data.sort);
+            },
+          });
+        }
+      },
+    },
   };
 
   // init states, bind to change event
@@ -368,7 +460,8 @@ window.addEventListener('DOMContentLoaded', function() {
     Views.map.update(id, flags);
   });
 
-  // init map events
+  // init map events, charts, and button events
   Views.map.init(E.map);
   Views.charts.init(E.map);
+  Views.masks.init();
 });
