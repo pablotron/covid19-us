@@ -22,7 +22,7 @@ git pull -q
 
 # generate public/data.json.tmp
 cd "$COVID19_US_DIR"
-./bin/gen-data.rb > ./public/data.json.tmp
+./bin/bake.rb > ./public/data.json.tmp
 
 # overwrite public/data.json
 mv public/data.json{.tmp,}

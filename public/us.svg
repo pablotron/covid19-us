@@ -22,6 +22,14 @@
   stroke-width: 3;
 }
 
+.h0 { fill: #0ee; }
+.h1 { fill: #0cc; }
+.h2 { fill: #0aa; }
+.h3 { fill: #088; }
+.h4 { fill: #066; }
+.h5 { fill: #044; }
+.h6 { fill: #022; }
+
 /*
 The .state class sets the default fill color for all states.
 
