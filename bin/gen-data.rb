@@ -274,6 +274,26 @@ puts JSON({
     }.map { |row|
       row[:id]
     },
+
+    population_per_area_all: INDEX.keys.map { |id|
+      hi = STATES[INDEX[id]][:population]
+      lo = AREAS[id][:area_all_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    population_per_area_land: INDEX.keys.map { |id|
+      hi = STATES[INDEX[id]][:population]
+      lo = AREAS[id][:area_land_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
   },
 
   data: REAL_DATA,

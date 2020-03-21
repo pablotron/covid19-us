@@ -53,49 +53,18 @@ window.addEventListener('DOMContentLoaded', function() {
       },
     };
 
-    function get_ids(filter_id, sort) {
-      var factor = (sort == 'asc') ? -1 : 1;
-      var rows = DATA.states.data.map(function(row) {
-        return {
-          id: row.state,
-          val: FILTERS[filter_id](row.state),
-        };
+    function get_ids(filter_id, sort, num) {
+      var rows = DATA.sorts[filter_id],
+          ofs = (sort === 'asc') ? 0 : (rows.length - 1 - num),
+          r = (sort === 'asc') ? rows.slice(0, num) : rows.slice(ofs);
+      console.log({
+        filter_id: filter_id,
+        sort: sort,
+        num: num,
+        rows: rows,
+        filter_id: filter_id,
+        ids: r,
       });
-
-      rows.sort(function(a, b) {
-        if (a.val > b.val) {
-          return factor * -1;
-        } else if (a.val == b.val) {
-          return factor * ((a.id < b.id) ? 1 : -1);
-        } else {
-          return factor * 1;
-        }
-      });
-
-      return rows.map(function(row) {
-        return row.id;
-      }).slice(0, 5);
-    }
-
-    // FIXME: busted at the moment
-    function get_nearby(num) {
-      var active = States.get_active();
-      var lut = active.reduce(function(r, id) {
-        return DATA.nearest[id].slice(1, num).reduce(function(r, ofs) {
-          r[DATA.states.data[ofs].state] = true;
-          return r;
-        }, r);
-      }, {});
-
-      // collect keys
-      var k, r = [];
-      for (var k in lut) {
-        if (active.indexOf(k) === -1) {
-          r.push(k);
-        }
-      }
-
-      // return keys
       return r;
     }
 
@@ -176,7 +145,7 @@ window.addEventListener('DOMContentLoaded', function() {
         return r;
       },
 
-      set_filter: function(filter_id, sort) {
+      set_filter: function(filter_id, sort, num) {
         if (filter_id == 'all') {
           // add all inactive states
           States.get_inactive().forEach(function(id) {
@@ -187,11 +156,6 @@ window.addEventListener('DOMContentLoaded', function() {
           States.get_active().forEach(function(id) {
             States.rm_flag(id, 'active');
           });
-        } else if (filter_id == 'near') {
-          // add nearest
-          get_nearby(4).forEach(function(id) {
-            States.add_flag(id, 'active');
-          });
         } else {
           // clear all active states
           States.get_active().forEach(function(id) {
@@ -199,7 +163,7 @@ window.addEventListener('DOMContentLoaded', function() {
           });
 
           // get by filter
-          get_ids(filter_id, sort).forEach(function(id) {
+          get_ids(filter_id, sort, num).forEach(function(id) {
             States.add_flag(id, 'active');
           });
         }
@@ -507,9 +471,9 @@ window.addEventListener('DOMContentLoaded', function() {
             on(ELS[i], {
               click: function(ev) {
                 var data = ev.target.dataset;
-                States.set_filter(data.id, data.sort);
+                States.set_filter(data.id, data.sort, 5);
 
-                if (data.id !== 'none' && data.id !== 'near') {
+                if (data.id !== 'none') {
                   active_btn = ev.target;
                 }
 
