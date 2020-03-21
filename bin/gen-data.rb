@@ -130,41 +130,6 @@ AREAS = load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
   r
 end
 
-#
-# class Loc
-#   attr :id, :x, :y
-#
-#   def initialize(id, x, y)
-#     @id = id
-#     @x = x
-#     @y = y
-#     raise "nil x for #@id" unless @x
-#     raise "nil y for #@id" unless @y
-#   end
-#
-#   def nearest(locs)
-#     locs.select { |loc| loc.id != @id }.map { |loc|
-#       { loc: loc, dist: dist(loc) }
-#     }.sort { |a, b|
-#       a[:dist] <=> b[:dist]
-#     }.map { |row|
-#       row[:loc]
-#     }
-#   end
-#
-#   private
-#
-#   def dist(b)
-#     Math.sqrt((@x - b.x) ** 2 + (@y - b.y) ** 2)
-#   end
-# end
-#
-# LOCS = DATA.keys.each.with_object({}) do |st, r|
-#   curr = DATA[st].keys.sort.map { |dk| DATA[st][dk] }.last
-#   r[st] = Loc.new(st, curr[:x], curr[:y])
-# end.values
-#
-
 # build export data
 REAL_DATA = DATA.keys.each.with_object({}) do |st, r|
   r[st] = DATA[st].keys.sort.map { |dk|
@@ -183,12 +148,6 @@ puts JSON({
     data: STATES,
     index: INDEX,
   },
-
-  # FIXME: busted
-  # build distance index
-  # nearest: LOCS.each.with_object({}) do |a, r|
-  #   r[a.id] = a.nearest(LOCS).map { |loc| INDEX[loc.id] }
-  # end,
 
   sorts: {
     population: INDEX.keys.map { |id|
