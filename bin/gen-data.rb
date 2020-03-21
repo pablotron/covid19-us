@@ -6,6 +6,7 @@
 
 require 'csv'
 require 'json'
+require 'pp'
 
 DATA_DIR = File.expand_path('../data', __dir__)
 
@@ -37,23 +38,47 @@ end
 
 DATE_RE = %r{\A(?<m>\d+)-(?<d>\d+)-(?<y>\d+)\.csv\Z}
 
-DATA_COLS = [{
-  src:  'Last Update', 
-  dst:  :last_updated,
-  type: :date,
-}, {
-  src:  'Confirmed',
-  dst:  :confirmed,
-  type: :int,
-}, {
-  src:  'Deaths',
-  dst:  :deaths,
-  type: :int,
-}, {
-  src:  'Recovered',
-  dst:  :recovered,
-  type: :int,
-}]
+DATA_COLS = {
+  csse: [{
+    src:  'Last Update',
+    dst:  :last_updated,
+    type: :date,
+  }, {
+    src:  'Confirmed',
+    dst:  :confirmed,
+    type: :int,
+  }, {
+    src:  'Deaths',
+    dst:  :deaths,
+    type: :int,
+  }, {
+    src:  'Recovered',
+    dst:  :recovered,
+    type: :int,
+  }, {
+    src:  'Latitude',
+    dst:  :y,
+    type: :float,
+  }, {
+    src:  'Longitude',
+    dst:  :x,
+    type: :float,
+  }],
+
+  areas: [{
+    src:  'name',
+    dst:  :name,
+    type: :text,
+  }, {
+    src: 'area_all_sq_mi',
+    dst: :area_all_sq_mi,
+    type: :float,
+  }, {
+    src: 'area_land_sq_mi',
+    dst: :area_land_sq_mi,
+    type: :float,
+  }],
+}
 
 DATA = Hash.new do |h, k|
   h[k] = Hash.new { |h2, k2| h2[k2] = {} }
@@ -67,13 +92,15 @@ Dir['%s/%s' % [DATA_DIR, 'csse-daily/*.csv']].each do |csv_path|
       row['Country/Region'] == 'US' &&
       NAMES.key?(row['Province/State'])
     }.each do |row|
-      DATA[NAMES[row['Province/State']]][date] = DATA_COLS.each.with_object({
+      DATA[NAMES[row['Province/State']]][date] = DATA_COLS[:csse].each.with_object({
         date: date,
       }) do |col, r|
         val = row[col[:src]]
         r[col[:dst]] = case col[:type]
         when :int
           (val && val =~ /\d+/) ? val.to_i : 0
+        when :float
+          (val && val =~ /\d+/) ? val.to_f : 0
         else
           val
         end
@@ -82,13 +109,172 @@ Dir['%s/%s' % [DATA_DIR, 'csse-daily/*.csv']].each do |csv_path|
   end
 end
 
+# load areas
+AREAS = load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
+  DATA_COLS[:areas].reduce({}) do |r, col|
+    val = row[col[:src]]
+
+    r[col[:dst]] = case col[:type]
+    when :int
+      val.to_i
+    when :float
+      val.to_f
+    else
+      val
+    end
+
+    r
+  end
+}.reduce({}) do |r, row|
+  r[NAMES[row[:name]]] = row
+  r
+end
+
+#
+# class Loc
+#   attr :id, :x, :y
+#
+#   def initialize(id, x, y)
+#     @id = id
+#     @x = x
+#     @y = y
+#     raise "nil x for #@id" unless @x
+#     raise "nil y for #@id" unless @y
+#   end
+#
+#   def nearest(locs)
+#     locs.select { |loc| loc.id != @id }.map { |loc|
+#       { loc: loc, dist: dist(loc) }
+#     }.sort { |a, b|
+#       a[:dist] <=> b[:dist]
+#     }.map { |row|
+#       row[:loc]
+#     }
+#   end
+#
+#   private
+#
+#   def dist(b)
+#     Math.sqrt((@x - b.x) ** 2 + (@y - b.y) ** 2)
+#   end
+# end
+#
+# LOCS = DATA.keys.each.with_object({}) do |st, r|
+#   curr = DATA[st].keys.sort.map { |dk| DATA[st][dk] }.last
+#   r[st] = Loc.new(st, curr[:x], curr[:y])
+# end.values
+#
+
+# build export data
+REAL_DATA = DATA.keys.each.with_object({}) do |st, r|
+  r[st] = DATA[st].keys.sort.map { |dk|
+    DATA[st][dk].keys.select { |k|
+      # exclude location
+      ![:x, :y].include?(k)
+    }.reduce({}) do |r2, k|
+      r2[k] = DATA[st][dk][k]
+      r2
+    end
+  }
+end
+
 puts JSON({
   states: {
     data: STATES,
     index: INDEX,
   },
 
-  data: DATA.keys.each.with_object({}) do |st, r|
-    r[st] = DATA[st].keys.sort.map { |dk| DATA[st][dk] }
-  end,
+  # FIXME: busted
+  # build distance index
+  # nearest: LOCS.each.with_object({}) do |a, r|
+  #   r[a.id] = a.nearest(LOCS).map { |loc| INDEX[loc.id] }
+  # end,
+
+  sorts: {
+    population: INDEX.keys.map { |id|
+      { id: id, val: STATES[INDEX[id]][:population] }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    cases: INDEX.keys.map { |id|
+      { id: id, val: REAL_DATA[id].last[:confirmed] }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    deaths: INDEX.keys.map { |id|
+      { id: id, val: REAL_DATA[id].last[:deaths] }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    cases_per_capita: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:confirmed]
+      lo = STATES[INDEX[id]][:population]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    cases_per_area_all: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:confirmed]
+      lo = AREAS[id][:area_all_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    cases_per_area_land: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:confirmed]
+      lo = AREAS[id][:area_land_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    deaths_per_capita: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:deaths]
+      lo = STATES[INDEX[id]][:population]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    deaths_per_area_all: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:deaths]
+      lo = AREAS[id][:area_all_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+
+    deaths_per_area_land: INDEX.keys.map { |id|
+      hi = REAL_DATA[id].last[:deaths]
+      lo = AREAS[id][:area_land_sq_mi]
+      { id: id, val: 1.0 * hi / lo }
+    }.sort { |a, b|
+      a[:val] <=> b[:val]
+    }.map { |row|
+      row[:id]
+    },
+  },
+
+  data: REAL_DATA,
 })

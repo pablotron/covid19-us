@@ -18,6 +18,7 @@
 
       #masks caption { font-size: 80%; font-weight: bold }
       #masks th { font-size: 80%; text-align: right; }
+      #masks button.active { font-weight: bold; }
     </style>
   </head>
 
@@ -31,7 +32,6 @@
     ></object>
 
     <table id='masks'>
-      <caption>Select States</caption>
       <tbody>
         <th>Highest</th>
 
@@ -129,7 +129,17 @@
       </tr>
 
       <tr>
-        <th>&nbsp;</th>
+        <th>Other</th>
+
+        <!-- td>
+          <button
+            class='mask'
+            title='Select states near the current states.'
+            data-id='near'
+          >
+            Nearby
+          </button>
+        </td -->
 
         <td colspan='4'>
           <button

@@ -77,6 +77,28 @@ window.addEventListener('DOMContentLoaded', function() {
       }).slice(0, 5);
     }
 
+    // FIXME: busted at the moment
+    function get_nearby(num) {
+      var active = States.get_active();
+      var lut = active.reduce(function(r, id) {
+        return DATA.nearest[id].slice(1, num).reduce(function(r, ofs) {
+          r[DATA.states.data[ofs].state] = true;
+          return r;
+        }, r);
+      }, {});
+
+      // collect keys
+      var k, r = [];
+      for (var k in lut) {
+        if (active.indexOf(k) === -1) {
+          r.push(k);
+        }
+      }
+
+      // return keys
+      return r;
+    }
+
     return {
       init: function(url) {
         // fetch data.json
@@ -164,6 +186,11 @@ window.addEventListener('DOMContentLoaded', function() {
           // clear all active states
           States.get_active().forEach(function(id) {
             States.rm_flag(id, 'active');
+          });
+        } else if (filter_id == 'near') {
+          // add nearest
+          get_nearby(4).forEach(function(id) {
+            States.add_flag(id, 'active');
           });
         } else {
           // clear all active states
@@ -438,19 +465,62 @@ window.addEventListener('DOMContentLoaded', function() {
       };
     })(),
 
-    masks: {
-      init: function() {
-        var els = document.getElementsByClassName('mask');
-        for (var i = 0; i < els.length; i++) {
-          on(els[i], {
-            click: function(ev) {
-              var data = ev.target.dataset
-              States.set_filter(data.id, data.sort);
-            },
-          });
+    masks: (function() {
+      var ELS = document.getElementsByClassName('mask'),
+          MS = 10, // delay, in ms
+          timeout = null,
+          active_btn = null;
+
+      function clear() {
+        timeout = null;
+
+        for (var i = 0; i < ELS.length; i++) {
+          if (ELS[i] !== active_btn) {
+            ELS[i].classList.remove('active');
+          }
         }
-      },
-    },
+
+        if (active_btn) {
+          // toggle active button
+          active_btn.classList.add('active');
+        }
+      }
+
+      return {
+        init: function() {
+          States.on('change', function(id, flag) {
+            if (flag === 'active') {
+              // clear active filter button
+              active_btn = null;
+
+              if (timeout !== null) {
+                // remove existing timeout
+                clearTimeout(timeout);
+              }
+
+              // set timeout
+              setTimeout(clear, MS);
+            }
+          });
+
+          for (var i = 0; i < ELS.length; i++) {
+            on(ELS[i], {
+              click: function(ev) {
+                var data = ev.target.dataset;
+                States.set_filter(data.id, data.sort);
+
+                if (data.id !== 'none' && data.id !== 'near') {
+                  active_btn = ev.target;
+                }
+
+                // stop event
+                return false;
+              },
+            });
+          }
+        },
+      };
+    })(),
   };
 
   // init states, bind to change event
