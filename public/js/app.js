@@ -7,8 +7,8 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'data'].reduce(function(r, id) {
-    r[id] = document.getElementById(id);
+  var E = ['map', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
+    r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
 
@@ -26,20 +26,37 @@ window.addEventListener('DOMContentLoaded', function() {
     var ehs = {};
 
     function fire(ev, args) {
-      if (ehs[ev]) {
-        ehs[ev].forEach(function(fn) {
-          fn.apply(null, args || []);
-        });
-      }
+      (ehs[ev] || []).forEach(function(fn) {
+        fn.apply(null, args || []);
+      });
     }
 
     return {
+      init: function(url) {
+        // fetch data.json
+        fetch(url).then(function(r) {
+          // parse json
+          return r.json();
+        }).then(function(r) {
+          // cache data
+          DATA = r;
+        });
+
+        return this;
+      },
+
+      get_name: function(id) {
+        return DATA.states.data[DATA.states.index[id]].name;
+      },
+
       on: function(ev, fn) {
         if (ehs[ev]) {
           ehs[ev].push(fn);
         } else {
           ehs[ev] = [fn];
         }
+
+        return this;
       },
 
       get_flags: function(id) {
@@ -47,139 +64,311 @@ window.addEventListener('DOMContentLoaded', function() {
       },
 
       add_flag: function(id, flag) {
-        var flags = FLAGS[id];
+        var flags = FLAGS[id] || [];
 
-        FLAGS[id] = ((flags && flags.length > 0) ? flags.filter(function(v) {
+        FLAGS[id] = ((flags.length > 0) ? flags.filter(function(v) {
           return (v != flag);
         }) : []).concat([flag]);
 
-        fire('change', [id]);
+        fire('change', [id, flag]);
       },
 
       rm_flag: function(id, flag) {
-        var flags = FLAGS[id];
+        var flags = FLAGS[id] || [];
 
-        FLAGS[id] = (flags && flags.length > 0) ? flags.filter(function(v) {
+        FLAGS[id] = (flags.length > 0) ? flags.filter(function(v) {
           return (v != flag);
         }) : [flag];
 
-        fire('change', [id]);
+        fire('change', [id, flag]);
       },
 
       toggle_flag: function(id, flag) {
-        var flags = FLAGS[id],
-            has = (flags && (flags.length > 0) && (flags.indexOf(flag) !== -1));
+        var flags = FLAGS[id] || [],
+            has = ((flags.length > 0) && (flags.indexOf(flag) !== -1));
 
         FLAGS[id] = has ? flags.filter(function(v) {
           return (v != flag);
         }) : (flags || []).concat([flag]);
 
-        fire('change', [id]);
+        fire('change', [id, flag]);
+      },
+
+      get_active: function() {
+        var r = [];
+
+        for (var id in FLAGS) {
+          if (FLAGS[id].indexOf('active') !== -1) {
+            r.push(id);
+          }
+        }
+
+        r.sort();
+
+        return r;
       },
     };
   })();
 
-  var View = {
-    map: {
-      update: (function() {
-        var FLAGS = ['active', 'hover'];
+  var Views = {
+    map: (function() {
+      // svg contentDocument cache
+      var doc = null;
 
-        return function(id) {
-          if (!E.svg || !id.match(/^[A-Z][A-Z]$/)) {
+      // event handlers
+      var EHS = {
+        mouseover: function(ev) {
+          States.add_flag(ev.target.id, 'hover');
+        },
+
+        mouseout: function(ev) {
+          States.rm_flag(ev.target.id, 'hover');
+        },
+
+        click: function(ev) {
+          States.toggle_flag(ev.target.id, 'active');
+        },
+      };
+
+      var FLAGS = ['active', 'hover'];
+
+      return {
+        init: function(map) {
+          // wait for svg to load
+          on(map, {
+            load: function() {
+              // cache svg doc element
+              doc = map.contentDocument;
+
+              // bind to map event handlers
+              on(doc, EHS);
+            },
+          });
+        },
+
+        update: function(id, flags) {
+          // check to make sure svg is loaded and ID is state
+          if (!doc || !id.match(/^[A-Z][A-Z]$/)) {
             return;
           }
 
-          var el = E.svg.getElementById(id);
+          // get state element, check for error
+          var el = doc.getElementById(id);
           if (!el) {
             return;
           }
 
+          // clear all classes, then add current ones
           var cl = el.classList;
           cl.remove.apply(cl, FLAGS);
-          cl.add.apply(cl, States.get_flags(id));
-        };
-      })(),
-    },
+          cl.add.apply(cl, flags);
+        },
+      };
+    })(),
 
-    html: {
-      make_table: (function() {
-        var COLS = [{
-          src: 'date',
-          dst: 'Date',
-          css: 'date',
-        }, {
-          src: 'confirmed',
-          dst: 'Confirmed',
-          css: 'num',
-        }, {
-          src: 'deaths',
-          dst: 'Deaths',
-          css: 'num',
-        }, {
-          src: 'recovered',
-          dst: 'Recovered',
-          css: 'num',
-        }];
+    stats_table: (function() {
+      var COLS = [{
+        src: 'date',
+        dst: 'Date',
+        css: 'date',
+      }, {
+        src: 'confirmed',
+        dst: 'Confirmed',
+        css: 'num',
+      }, {
+        src: 'deaths',
+        dst: 'Deaths',
+        css: 'num',
+      // }, {
+      //   src: 'recovered',
+      //   dst: 'Recovered',
+      //   css: 'num',
+      }];
 
-        return function(id) {
+      return {
+        make: function(id) {
+          // make sure data is loaded
           if (!DATA || !DATA.data[id]) {
             return '';
           }
 
-          return '<table><thead><tr>' + COLS.map(function(col) {
-            return '<th>' + col.dst + '</th>';
-          }).join('') + '</thead><tbody>' + DATA.data[id].map(function(row) {
-            return '<tr>' + COLS.map(function(col) {
-              return '<td class="' + col.css + '">' + row[col.src] + '</td>';
-            }).join('') + '</tr>';
-          }).join('') + '</tbody></table>';
-        };
-      })(),
-    },
+          // get state data
+          return ('<table>' +
+            '<caption>' + States.get_name(id) + '</caption>' +
+
+            '<thead>' +
+              '<tr>' + COLS.map(function(col) {
+                return '<th>' + col.dst + '</th>';
+              }).join('') + '</tr>' +
+            '</thead>' +
+
+            '<tbody>' +
+              DATA.data[id].map(function(row) {
+                return '<tr>' + COLS.map(function(col) {
+                  var val = row[col.src];
+                  return '<td class="' + col.css + '">' + val + '</td>';
+                }).join('') + '</tr>';
+              }).join('') +
+            '</tbody>' +
+          '</table>');
+        },
+      };
+    })(),
+
+    color: (function() {
+      var COLORS = [
+        '#4dc9f6',
+        '#f67019',
+        '#f53794',
+        '#537bc4',
+        '#acc236',
+        '#166a8f',
+        '#00a950',
+        '#58595b',
+        '#8549ba',
+      ];
+
+      // hash string to u32.
+      // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
+      function hash(s) {
+        var r = 3141, l = s.length;
+        for (var i = 0; i < l; i++) {
+          var c = s.charCodeAt(i);
+          r  = ((hash << 5) - r) + c;
+          r |= 0;
+        }
+        return r;
+      }
+
+      return {
+        get: function(id) {
+          return COLORS[hash(States.get_name(id)) % COLORS.length];
+        },
+      };
+    })(),
+
+    charts: (function() {
+      var CHARTS = {}, COLS = [{
+        id:   'confirmed',
+        name: 'Confirmed Cases',
+      }, {
+        id:   'deaths',
+        name: 'Deaths',
+      // }, {
+      //   id:   'recovered',
+      //   name: 'Recovered',
+      }];
+
+      return {
+        init: function() {
+          COLS.forEach(function(col) {
+            var config = {
+              type: 'line',
+              data: {
+                // labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+                datasets: [],
+              },
+
+              options: {
+                scales: {
+                  xAxes: [{
+                    type: 'time',
+                    time: {
+                      unit: 'day',
+                    },
+
+                    scaleLabel: {
+                      display: true,
+                      labelString: 'Date',
+                    },
+                  }],
+
+                  yAxes: [{
+                    ticks: {
+                      beginAtZero: true,
+                    },
+
+                    scaleLabel: {
+                      display: true,
+                      labelString: col.name,
+                    },
+                  }],
+                },
+
+                title: {
+                  display: true,
+                  position: 'top',
+                  text: col.name + ' by State vs. Time',
+                },
+              },
+            };
+
+            // create chart
+            var chart = new Chart(E[col.id], config);
+
+            // cache config and chart
+            CHARTS[col.id] = {
+              config: config,
+              chart: chart,
+            };
+          });
+
+          States.on('change', function(id, flag) {
+            var ids = States.get_active(),
+                st = DATA.states.data[DATA.states.index[id]];
+
+            if (flag !== 'active') {
+              return;
+            }
+
+            COLS.forEach(function(col) {
+              var chart = CHARTS[col.id],
+                  config_data = chart.config.data;
+
+              // rebuild labels
+              config_data.labels = ids.filter(function(id) {
+                return !!DATA.data[id];
+              }).map(function(id) {
+                return DATA.states.data[DATA.states.index[id]];
+              });
+
+              // rebuild datasets
+              config_data.datasets = ids.filter(function(id) {
+                return !!DATA.data[id];
+              }).map(function(id) {
+                return {
+                  label: States.get_name(id),
+
+                  lineTension: 0,
+                  borderColor: Views.color.get(id),
+                  fill: false,
+
+                  data: DATA.data[id].map(function(row) {
+                    return {
+                      x: row.date,
+                      y: row[col.id],
+                    };
+                  }),
+                };
+              });
+
+              // update chart
+              chart.chart.update();
+            });
+          });
+        }
+      };
+    })(),
   };
 
-  // bind to change event
-  States.on('change', function(id) {
-    var has_flags = States.get_flags(id).length > 0;
-    E.data.innerHTML = has_flags ? View.html.make_table(id) : '';
-    View.map.update(id);
+  // init states, bind to change event
+  States.init(DATA_URL).on('change', function(id) {
+    var flags = States.get_flags(id);
+    E.data.innerHTML = (flags.length > 0) ? Views.stats_table.make(id) : '';
+    Views.map.update(id, flags);
   });
 
-  // dom event handlers
-  var EHS = {
-    // map event handlers
-    map: {
-      mouseover: function(ev) {
-        States.add_flag(ev.target.id, 'hover');
-      },
-
-      mouseout: function(ev) {
-        States.rm_flag(ev.target.id, 'hover');
-      },
-
-      click: function(ev) {
-        States.toggle_flag(ev.target.id, 'active');
-      },
-    },
-  };
-
-  // wait for svg to load
-  on(E.map, {
-    load: function() {
-      // cache map svg doc
-      E.svg = E.map.contentDocument;
-
-      // bind to map events
-      on(E.svg, EHS.map);
-    },
-  });
-
-  // fetch data.json
-  fetch(DATA_URL).then(function(r) {
-    // parse json
-    return r.json();
-  }).then(function(r) {
-    // cache data
-    DATA = r;
-  });
+  // init map events
+  Views.map.init(E.map);
+  Views.charts.init(E.map);
 });

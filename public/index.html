@@ -6,9 +6,11 @@
     <style type='text/css'>
       .num { text-align: right; }
 
-      #data td {
+      #data th, #data caption, #data td {
         font-family: verdana, arial, sans-serif;
       }
+
+      #data th { font-size: 80%; }
     </style>
   </head>
 
@@ -21,10 +23,24 @@
       height='593'
     ></object>
 
+    <div id='charts' style='width: 800px'>
+      <canvas
+        id='confirmed'
+        width='300'
+        height='100'
+      ></canvas>
+
+      <canvas
+        id='deaths'
+        width='300'
+        height='100'
+      ></canvas>
+    </div>
+
     <div id='data'>
     </div>
 
-    <script type='text/javascript' src='js/jquery-3.4.1.slim.min.js'></script>
+    <script type='text/javascript' src='js/chartjs-2.9.3-bundle.min.js'></script>
     <script type='text/javascript' src='js/app.js'></script>
   </body>
 </html>
