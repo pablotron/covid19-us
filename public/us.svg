@@ -29,6 +29,7 @@
 .h4 { fill: #066; }
 .h5 { fill: #044; }
 .h6 { fill: #022; }
+.h7 { fill: #000; }
 
 /*
 The .state class sets the default fill color for all states.

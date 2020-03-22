@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
+  var E = ['map', 'map-bg', 'picker', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
     r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
@@ -55,7 +55,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
     function get_ids(filter_id, sort, num) {
       var rows = DATA.sorts[filter_id],
-          ofs = (sort === 'asc') ? 0 : (rows.length - 1 - num),
+          ofs = (sort === 'asc') ? 0 : (rows.length - num),
           r = (sort === 'asc') ? rows.slice(0, num) : rows.slice(ofs);
       console.log({
         filter_id: filter_id,
@@ -145,6 +145,28 @@ window.addEventListener('DOMContentLoaded', function() {
         return r;
       },
 
+      /**
+       * Find matching states by flags.
+       *
+       * Accepts an array of flags IDs and returns a map of flag ID to
+       * array of matching state IDs.
+       */
+      find_by_flags: function(flags) {
+        var r = {};
+
+        for (var id in FLAGS) {
+          FLAGS[id].filter(function(flag) {
+            return flags.indexOf(flag) !== -1;
+          }).forEach(function(flag) {
+            r[flag] = r[flag] || [];
+            r[flag].push(id);
+          });
+        }
+
+        // return result
+        return r;
+      },
+
       set_filter: function(filter_id, sort, num) {
         if (filter_id == 'all') {
           // add all inactive states
@@ -184,7 +206,7 @@ window.addEventListener('DOMContentLoaded', function() {
       // svg contentDocument cache
       var doc = null;
 
-      // event handlers
+      // map event handlers
       var EHS = {
         mouseover: function(ev) {
           States.add_flag(ev.target.id, 'hover');
@@ -231,6 +253,48 @@ window.addEventListener('DOMContentLoaded', function() {
           var cl = el.classList;
           cl.remove.apply(cl, FLAGS);
           cl.add.apply(cl, flags);
+        },
+      };
+    })(),
+
+    bg: (function() {
+      // select event handlers
+      var EHS = {
+        change: function(ev) {
+          var me = ev.target;
+
+          setTimeout(function() {
+            set_map_fill(me.value);
+          }, 10);
+        },
+      };
+
+      // FIXME: should be dynamic (pull from DATA.num_buckets)
+      var FLAGS = ['h0', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7'];
+
+      function set_map_fill(fill_id) {
+        // get existing flags
+        var lut = States.find_by_flags(FLAGS);
+
+        // remove existing flags
+        for (var flag in lut) {
+          lut[flag].forEach(function(id) {
+            States.rm_flag(id, flag);
+          });
+        }
+
+        // add bins for new flags
+        (DATA.hists[fill_id] || []).forEach(function(row, i) {
+          var flag = 'h' + i;
+          row.ids.forEach(function(id) {
+            States.add_flag(id, flag);
+          });
+        });
+      }
+
+      return {
+        init: function(el) {
+          on(el, EHS);
         },
       };
     })(),
@@ -429,6 +493,142 @@ window.addEventListener('DOMContentLoaded', function() {
       };
     })(),
 
+    picker: (function() {
+      var PICKS = [{
+        name: 'General',
+        kids: [{
+          id: 'none',
+          name: 'None',
+          text: 'Clear all selections.',
+        }],
+      }, {
+        name: 'Highest Cases',
+        kids: [{
+          id: 'cases_per_capita',
+          name: 'Highest Cases Per Capita',
+          sort: 'desc',
+          text: 'States with the highest number of total cases per capita.',
+        }, {
+          id: 'cases_per_area_land',
+          sort: 'desc',
+          name: 'Highest Case Density',
+          text: 'States with the highest number of cases per square mile of land.',
+        }, {
+          id: 'cases',
+          sort: 'desc',
+          name: 'Highest Number of Cases',
+          text: 'States with the highest absolute number of cases.',
+        }],
+      }, {
+        name: 'Highest Deaths',
+        kids: [{
+          id: 'deaths_per_capita',
+          sort: 'desc',
+          name: 'Highest Deaths Per Capita',
+          text: 'States with the highest number of deaths per capita.',
+        }, {
+          id: 'deaths_per_area_land',
+          sort: 'desc',
+          name: 'Highest Death Density',
+          text: 'States with the highest number of deaths per square mile of land.',
+        }, {
+          id: 'deaths',
+          sort: 'desc',
+          name: 'Highest Number of Deaths',
+          text: 'States with the highest absolute number of deaths.',
+        }],
+      }, {
+        name: 'Highest Population',
+        kids: [{
+          id: 'population_per_area_land',
+          name: 'Highest Population Density',
+          sort: 'desc',
+          text: 'States with the highest population per square mile of land.',
+        }, {
+          id: 'population',
+          sort:'desc',
+          name: 'Highest Population',
+          text: 'States with the highest absolute population.',
+        }],
+      }, {
+        name: 'Lowest Cases',
+        kids: [{
+          id: 'cases_per_capita',
+          name: 'Lowest Cases Per Capita',
+          sort: 'asc',
+          text: 'States with the lowest number of total cases per capita.',
+        }, {
+          id: 'cases_per_area_land',
+          sort: 'asc',
+          name: 'Lowest Case Density',
+          text: 'States with the lowest number of cases per square mile of land.',
+        }, {
+          id: 'cases',
+          sort: 'asc',
+          name: 'Lowest Number of Cases',
+          text: 'States with the lowest absolute number of cases.',
+        }],
+      }, {
+        name: 'Lowest Deaths',
+        kids: [{
+          id: 'deaths_per_capita',
+          sort: 'asc',
+          name: 'Lowest Deaths Per Capita',
+          text: 'States with the lowest number of deaths per capita.',
+        }, {
+          id: 'deaths_per_area_land',
+          sort: 'asc',
+          name: 'Lowest Death Density',
+          text: 'States with the lowest number of deaths per square mile of land.',
+        }, {
+          id: 'deaths',
+          sort: 'asc',
+          name: 'Lowest Number of Deaths',
+          text: 'States with the lowest absolute number of deaths.',
+        }],
+      }, {
+        name: 'Lowest Population',
+        kids: [{
+          id: 'population_per_area_land',
+          name: 'Lowest Population Density',
+          sort: 'asc',
+          text: 'States with the lowest population per square mile of land.',
+        }, {
+          id: 'population',
+          sort:'asc',
+          name: 'Lowest Population',
+          text: 'States with the lowest absolute population.',
+        }],
+      }];
+
+      return {
+        init: function(el) {
+          // populate html
+          el.innerHTML = PICKS.map(function(group) {
+            return '<optgroup label="' + group.name + '">' +
+              group.kids.map(function(row) {
+                return '<option ' +
+                  'value="' + row.id + '" ' +
+                  'title="' + row.text +'" ' +
+                '>' +
+                  row.name +
+                '</option>';
+              }).join('') +
+            '</optgroup>';
+          }).join('');
+
+          // bind to change event
+          on(el, {
+            change: function() {
+              setTimeout(function() {
+                States.set_filter(el.value, data.sort, 5);
+              }, 10);
+            },
+          });
+        },
+      };
+    })(),
+
     masks: (function() {
       var ELS = document.getElementsByClassName('mask'),
           MS = 10, // delay, in ms
@@ -496,6 +696,8 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // init map events, charts, and button events
   Views.map.init(E.map);
+  Views.bg.init(E.map_bg);
+  Views.picker.init(E.picker);
   Views.charts.init(E.map);
   Views.masks.init();
 });

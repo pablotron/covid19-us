@@ -5,6 +5,7 @@
     <title>COVID-19 in the US</title>
     <style type='text/css'>
       .num { text-align: right; }
+      .hidden { display: none; }
 
       #data th, #data caption, #data td {
         font-family: verdana, arial, sans-serif;
@@ -20,6 +21,13 @@
       #masks thead th { font-size: 80%; text-align: center; }
       #masks tbody th { font-size: 80%; text-align: right; }
       #masks button.active { font-weight: bold; }
+
+      label[for="picker"] {
+        font-family: verdana, arial, sans-serif;
+        font-size: 80%;
+        font-weight: bold;
+        text-align: right;
+      }
     </style>
   </head>
 
@@ -32,7 +40,7 @@
       height='495'
     ></object>
 
-    <table id='masks'>
+    <table id='masks' class='hidden'>
       <thead>
         <tr>
           <th>&nbsp;</th>
@@ -250,7 +258,7 @@
       <tr>
         <th>Other</th>
 
-        <td colspan='4'>
+        <td>
           <button
             class='mask'
             title='Clear all selected states.'
@@ -259,8 +267,82 @@
             Clear
           </button>
         </td>
+
+        <td colspan='4'>
+          <select
+            id='map-bg'
+            title='Choose map background style.'
+          >
+            <option
+              value='none'
+              title='Default background..'
+            >
+              Default
+            </style>
+
+            <optgroup label='Cases'>
+              <option
+                value='cases_per_capita'
+                title='Number of cases per capita.'
+              />
+                Cases Per Capita
+              </option>
+
+              <option
+                value='cases_per_area_land'
+                title='Number of cases per square mile of land.'
+              >
+                Density
+              </option>
+
+              <option
+                value='cases'
+                title='Number of cases.'
+              >
+                Absolute
+              </option>
+            </optgroup>
+
+            <optgroup label='Deaths'>
+              <option
+                value='deaths_per_capita'
+                title='Number of deaths per capita.'
+              >
+                Deaths Per Capita
+              </option>
+
+              <option
+                value='deaths_per_area_land'
+                title='Number of cases per square mile of land.'
+              >
+                Density
+              </option>
+
+              <option
+                value='deaths'
+                title='Number of deaths.'
+              >
+                Absolute
+              </option>
+            </optgroup>
+          </button>
+        </td>
+        <td colspan='4'>
+        </td>
       </tr>
     </table>
+
+    <p>
+      <label for='picker'>
+        Pick
+      </label>
+
+      <select
+        id='picker'
+        title='Select states matching criteria.'
+      >
+      </select>
+    </p>
 
     <div id='charts' style='width: 800px'>
       <canvas

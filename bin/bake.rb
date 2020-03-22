@@ -19,7 +19,7 @@ require 'pp'
 DATA_DIR = File.expand_path('../data', __dir__)
 
 # number of histogram buckets
-NUM_BUCKETS = 5
+NUM_BUCKETS = 8
 
 def load_csv(path)
   CSV(File.open(path, 'rb'), headers: true).map { |row| row.to_h }
@@ -248,6 +248,9 @@ puts JSON({
   sorts: SORTS.keys.each.with_object({}) do |k, r|
     r[k] = SORTS[k].map { |row| row[:id] }
   end,
+
+  # number of buckets in histograms
+  num_buckets: NUM_BUCKETS,
 
   # generate histograms
   hists: SORTS.keys.each.with_object({}) do |k, r|
