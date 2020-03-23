@@ -41,6 +41,14 @@
       .chart-wrap { width: 800px; }
 
       #count { max-width: 2.5em }
+
+      #help {
+        font-family: verdana, arial, sans-serif;
+        width: 800px;
+        border: 1px solid black;
+        padding: 0px 10px;
+        margin: 20px 0 20px 0;
+      }
     </style>
   </head>
 
@@ -139,6 +147,76 @@
 
     <div id='data'>
     </div>
+
+    <div id='help'>
+      <p>
+        <b>About COVID-19 US</b>
+      </p>
+
+      <p>
+        This tool allows you to view the state-level COVID-19 timeline
+        data across multiple states.
+      </p>
+
+      <p>
+        You can click states on the map to select or de-select
+        them.  A timeline of data from the selected states will show up
+        in the chart and table.
+      </p>
+
+      <b>Tips:</b>
+      <ul>
+        <li>
+          Use the <b>Map</b> dropdown menu to quickly select multiple
+          states based on certain criteria.
+        </li>
+
+        <li>
+          Click the <b>Clear</b> button to clear all selected states.
+        </li>
+
+        <li>
+          Use the <b>Chart</b> dropdown menu to select the value of the
+          Y axis in the output chart.
+        </li>
+
+        <li>
+          Use the <b>Table</b> dropdown menu to select the value of the
+          cells in the output table.
+        </li>
+
+        <li>
+          Use the <b>Download</b> link to download date for the selected
+          states as a CSV file.
+        </li>
+      </ul>
+
+      <b>Links:</b>
+      <ul>
+        <li>
+          <a
+            title='current data source, may change soon'
+            href='https://github.com/CSSEGISandData/COVID-19'
+          >
+            John Hopkins CSSE COVID-19 Data Repository
+          </a>: Data source (note: this may change soon).
+        </li>
+
+        <li>
+          <a
+            title='github repository'
+            href='https://github.com/pablotron/covid19-us/'
+          >
+            GitHub repository
+          </a>: Source code for this tool.
+        </li>
+      </ul>
+
+      <p>
+        <b>Note:</b> This tool has only been tested in Chrome, and
+        probably doesn't work in other browsers.
+      </p>
+    </div><!-- #help -->
 
     <script type='text/javascript' src='js/chartjs-2.9.3-bundle.min.js'></script>
     <script type='text/javascript' src='js/app.js'></script>
