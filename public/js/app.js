@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
+  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths', 'count'].reduce(function(r, id) {
     r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
@@ -50,6 +50,10 @@ window.addEventListener('DOMContentLoaded', function() {
       return r;
     }
 
+    function get_data(id) {
+      return DATA.states.data[DATA.states.index[id]];
+    }
+
     return {
       init: function(url) {
         // fetch data.json
@@ -64,8 +68,8 @@ window.addEventListener('DOMContentLoaded', function() {
         return this;
       },
 
-      get_name: function(id) {
-        return DATA.states.data[DATA.states.index[id]].name;
+      get_data: function(id) {
+        return get_data(id);
       },
 
       on: function(ev, fn) {
@@ -175,11 +179,9 @@ window.addEventListener('DOMContentLoaded', function() {
       get_denominator_value: function(type, id) {
         switch (type) {
         case 'population':
-          var ofs = DATA.states.index[id];
-          return 1.0 * DATA.states.data[ofs].population;
+          return 1.0 * get_data(id).population;
         case 'area_land':
-          var ofs = DATA.states.index[id];
-          return 1.0 * DATA.states.data[ofs].area_land_sq_mi;
+          return 1.0 * get_data(id).area_land_sq_mi;
         case 'one':
           return 1;
         default:
@@ -203,6 +205,18 @@ window.addEventListener('DOMContentLoaded', function() {
       });
     }
 
+      var TEXTS = {
+        cases:      'Number of Cases',
+        deaths:     'Number of Deaths',
+        population: 'Capita',
+        area_land:  'Square Mile',
+      };
+
+      function get_axis_label(view) {
+        var den = (view.den !== 'one') ? [TEXTS[view.den]] : [];
+        return [TEXTS[view.num]].concat(den).join(' Per ');
+      }
+
     return {
       on: function(ev, fn) {
         if (ehs[ev]) {
@@ -223,6 +237,26 @@ window.addEventListener('DOMContentLoaded', function() {
       get_view: function() {
         // return current view
         return view;
+      },
+
+      // FIXME: hack
+      get_col_key: function(num) {
+        if (num == 'cases') {
+          return 'confirmed';
+        } else if (num == 'deaths') {
+          return 'deaths';
+        } else {
+          // log error
+          console.error('unknown numerator: ' + num);
+        }
+      },
+
+      get_axis_label: function(view) {
+        return get_axis_label(view);
+      },
+
+      get_title: function(view) {
+        return get_axis_label(view) + ' by State vs. Time';
       },
     };
   })();
@@ -353,7 +387,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
           // get state data
           return ('<table>' +
-            '<caption>' + States.get_name(id) + '</caption>' +
+            '<caption>' + States.get_data(id).name + '</caption>' +
 
             '<thead>' +
               '<tr>' + COLS.map(function(col) {
@@ -401,7 +435,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
       return {
         get: function(id) {
-          return COLORS[hash(States.get_name(id)) % COLORS.length];
+          return COLORS[hash(States.get_data(id).name) % COLORS.length];
         },
       };
     })(),
@@ -410,57 +444,23 @@ window.addEventListener('DOMContentLoaded', function() {
       var CHARTS = {}, COLS = [{
         id:   'confirmed',
         name: 'Confirmed Cases',
-/*
- *       }, {
- *         id:   'deaths',
- *         name: 'Deaths',
- */
-      // }, {
-      //   id:   'recovered',
-      //   name: 'Recovered',
       }];
-
-      function get_col_key(num) {
-        if (num == 'cases') {
-          return 'confirmed';
-        } else if (num == 'deaths') {
-          return 'deaths';
-        } else {
-          // log error
-          console.error('unknown numerator: ' + num);
-        }
-      }
-
-      var TEXTS = {
-        cases:      'Number of Cases',
-        deaths:     'Number of Deaths',
-        population: 'Capita',
-        area_land:  'Square Mile',
-      };
-
-      function get_axis_text(view) {
-        // build label text
-        var den = (view.den !== 'one') ? [TEXTS[view.den]] : [];
-        return [TEXTS[view.num]].concat(den).join(' Per ');
-      }
 
       // set axis label and char title
       function set_text(options, view) {
-        var s = get_axis_text(view);
+        var label = ChartModel.get_axis_label(view),
+            title = ChartModel.get_title(view);
 
-        // set axis label
-        options.scales.yAxes[0].scaleLabel.labelString = s;
-
-        // set chart title
-        options.title.text = s + ' by State vs. Time';
+        // set axis label and chart title
+        options.scales.yAxes[0].scaleLabel.labelString = label;
+        options.title.text = title;
       }
 
       function refresh() {
         var ids = States.get_active(),
               view = ChartModel.get_view();
 
-        // FIXME: hack
-        var col_key = get_col_key(view.num);
+        var col_key = ChartModel.get_col_key(view.num);
 
         COLS.forEach(function(col) {
           var chart = CHARTS[col.id],
@@ -487,7 +487,7 @@ window.addEventListener('DOMContentLoaded', function() {
             var den = States.get_denominator_value(view.den, id);
 
             return {
-              label: States.get_name(id),
+              label: States.get_data(id).name,
 
               lineTension: 0,
               borderColor: Views.color.get(id),
@@ -727,7 +727,7 @@ window.addEventListener('DOMContentLoaded', function() {
       }];
 
       return {
-        init: function(menu_el, none_el) {
+        init: function(menu_el, none_el, count_el) {
           // populate html
           menu_el.innerHTML = ITEMS.map(function(group) {
             return '<optgroup label="' + group.name + '">' +
@@ -746,13 +746,26 @@ window.addEventListener('DOMContentLoaded', function() {
             '</optgroup>';
           }).join('');
 
+          function refresh() {
+            setTimeout(function() {
+              var data = menu_el.options[menu_el.selectedIndex].dataset,
+                  count = count_el.value;
+
+              States.set_filter(data.num, data.den, data.sort, count);
+            }, 10);
+          }
+
           // bind to change event
           on(menu_el, {
             change: function() {
-              setTimeout(function() {
-                var data = menu_el.options[menu_el.selectedIndex].dataset;
-                States.set_filter(data.num, data.den, data.sort, 5);
-              }, 10);
+              refresh();
+            },
+          });
+
+          // bind to change event
+          on(count_el, {
+            change: function() {
+              refresh();
             },
           });
 
@@ -851,12 +864,152 @@ window.addEventListener('DOMContentLoaded', function() {
         },
       };
     })(),
+
+    table: (function() {
+      var wrap_el = null;
+
+      var DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+      function format_date(s) {
+        return (s || '').replace(DATE_RE, '$2/$3');
+      }
+
+      function format_number(view, v) {
+        return (view.den !== 'one') ? (v * 1000000).toFixed(2) : v;
+      }
+
+      function make_link(ids) {
+        var view = ChartModel.get_view(),
+            col_key = ChartModel.get_col_key(view.num),
+            title = ChartModel.get_title(view);
+
+        var dates = DATA.data[ids.reduce(function(r, id) {
+          var v = DATA.data[id].length;
+          return (!r || (v > DATA.data[r].length)) ? id : r;
+        })].map(function(row) {
+          return row.date;
+        });
+
+        var csv_data = [
+          ['State', 'Population'].concat(dates.map(function(date) {
+            return '"' + date + '"';
+          })).join(','),
+        ].concat(ids.map(function(id) {
+          // get state data and denominator for state
+          var state = States.get_data(id);
+          var den = States.get_denominator_value(view.den, id);
+
+          return [
+            '"' + state.name + ' (' + id + ')"',
+            state.population,
+          ].concat(DATA.data[id].map(function(row) {
+            return format_number(view, row[col_key] / den);
+          })).join(',');
+        })).join('\n') + '\n';
+
+        return '<a ' +
+          'download="' + title + '.csv"' +
+          'title="Download results as a CSV file." ' +
+          'href="data:text/csv;charset=utf-8,' + encodeURI(csv_data) + '" ' +
+        '>' +
+          'Download' +
+        '</a>';
+      }
+
+      function make_table(ids) {
+        var view = ChartModel.get_view(),
+            col_key = ChartModel.get_col_key(view.num),
+            label = ChartModel.get_axis_label(view),
+            title = ChartModel.get_title(view);
+
+        var dates = DATA.data[ids.reduce(function(r, id) {
+          var v = DATA.data[id].length;
+          return (!r || (v > DATA.data[r].length)) ? id : r;
+        })].map(function(row) {
+          return row.date;
+        });
+
+        return '<table>' +
+          // '<caption>' + title + '</caption>' +
+          '<thead>' +
+            '<tr>' +
+              '<th colspan="2">&nbsp;</th>' +
+              '<th colspan="' + dates.length + '">' +
+                label +
+              '</th>' +
+            '</tr>' +
+
+            '<tr>' +
+              '<th class="state-name">State</th>' +
+              '<th class="num state-pop">Population</th>' +
+
+              dates.map(function(date) {
+                return '<th>' + format_date(date) + '</th>';
+              }).join('') +
+            '</tr>' +
+          '</thead>' +
+
+          '<tbody>' + ids.map(function(id) {
+            // get state data and denominator for state
+            var state = States.get_data(id);
+            var den = States.get_denominator_value(view.den, id);
+
+            return '<tr>' +
+              '<th class="state-name">' +
+                state.name + ' (' + id + ')' +
+              '</th>' +
+
+              '<td class="num state-pop">' +
+                state.population +
+              '</td>' +
+
+              DATA.data[id].map(function(row) {
+                return '<td class="num">' +
+                  format_number(view, row[col_key] / den) +
+                '</td>';
+              }).join('') +
+            '</tr>';
+          }).join('') +
+          '</tbody>' +
+        '</table>';
+      }
+
+      function draw(ids) {
+        return make_table(ids) +
+               make_link(ids);
+      }
+
+      function refresh() {
+        var ids = States.get_active().filter(function(id) {
+          return !!DATA.data[id];
+        });
+
+        wrap_el.innerHTML = (ids.length > 0) ? draw(ids) : '';
+      }
+
+      return {
+        init: function(el) {
+          // cache wrapper
+          wrap_el = el;
+
+          // bind to states model
+          States.on('change', function(id, flag) {
+            if (flag === 'active') {
+              refresh();
+            }
+          });
+
+          // bind to chart model
+          ChartModel.on('change', function() {
+            refresh();
+          });
+        },
+      };
+    })(),
   };
 
   // init states, bind to change event
-  States.init(DATA_URL).on('change', function(id) {
+  States.init(DATA_URL).on('change', function(id, flag) {
     var flags = States.get_flags(id);
-    E.data.innerHTML = (flags.length > 0) ? Views.stats_table.make(id) : '';
     Views.map.update(id, flags);
   });
 
@@ -868,7 +1021,8 @@ window.addEventListener('DOMContentLoaded', function() {
   // init map events, charts, and button events
   Views.map.init(E.map);
   // Views.bg.init(E.map_bg);
-  Views.picker.init(E.states, E.none);
+  Views.picker.init(E.states, E.none, E.count);
   Views.charts.init(E.map);
+  Views.table.init(E.data);
   Views.yaxis.init(E.y_axis);
 });

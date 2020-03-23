@@ -9,9 +9,14 @@
 
       #data th, #data caption, #data td {
         font-family: verdana, arial, sans-serif;
+        margin: 2 1;
       }
 
+      #data th.state-name { text-align: right; }
+
       #data th { font-size: 80%; }
+
+      #data tbody tr:hover { background-color: #eee }
 
       #masks th, #masks caption, #masks td {
         font-family: verdana, arial, sans-serif;
@@ -34,6 +39,8 @@
       }
 
       .chart-wrap { width: 800px; }
+
+      #count { max-width: 2.5em }
     </style>
   </head>
 
@@ -58,6 +65,16 @@
         </td>
 
         <td class='menu'>
+          <input
+            id='count'
+            type='number'
+            value='5'
+            min='0'
+            max='51'
+            step='1'
+            title='Number of states to select.'
+          />
+
           <select
             id='states'
             title='Select states on map by filter.'
