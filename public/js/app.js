@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths', 'count'].reduce(function(r, id) {
+  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths', 'count', 'table-units'].reduce(function(r, id) {
     r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
@@ -192,6 +192,76 @@ window.addEventListener('DOMContentLoaded', function() {
   })();
 
   var ChartModel = (function() {
+    // internal event listeners
+    var ehs = {};
+
+    // view state
+    var view = { num: 'cases', den: 'one' };
+
+
+    function fire(ev, args) {
+      (ehs[ev] || []).forEach(function(fn) {
+        fn.apply(null, args || []);
+      });
+    }
+
+      var TEXTS = {
+        cases:      'Number of Cases',
+        deaths:     'Number of Deaths',
+        population: 'Capita',
+        area_land:  'Square Mile',
+      };
+
+      function get_axis_label(view) {
+        var den = (view.den !== 'one') ? [TEXTS[view.den]] : [];
+        return [TEXTS[view.num]].concat(den).join(' Per ');
+      }
+
+    return {
+      on: function(ev, fn) {
+        if (ehs[ev]) {
+          ehs[ev].push(fn);
+        } else {
+          ehs[ev] = [fn];
+        }
+
+        return this;
+      },
+
+      set_view: function(data) {
+        view = data;
+        console.log(view);
+        fire('change', view);
+      },
+
+      get_view: function() {
+        // return current view
+        return view;
+      },
+
+      // FIXME: hack
+      get_col_key: function(num) {
+        if (num == 'cases') {
+          return 'confirmed';
+        } else if (num == 'deaths') {
+          return 'deaths';
+        } else {
+          // log error
+          console.error('unknown numerator: ' + num);
+        }
+      },
+
+      get_axis_label: function(view) {
+        return get_axis_label(view);
+      },
+
+      get_title: function(view) {
+        return get_axis_label(view) + ' by State vs. Time';
+      },
+    };
+  })();
+
+  var TableModel = (function() {
     // internal event listeners
     var ehs = {};
 
@@ -865,6 +935,63 @@ window.addEventListener('DOMContentLoaded', function() {
       };
     })(),
 
+    table_units: (function() {
+      var ITEMS = [{
+        name: 'Totals',
+
+        kids: [{
+          name: 'Total Number of Cases',
+          text: 'Show total number of cases.',
+
+          num:  'cases',
+          den:  'one',
+
+          selected: true,
+        }, {
+          name: 'Total Number of Deaths',
+          text: 'Show total number of deaths.',
+
+          num:  'deaths',
+          den:  'one',
+        }],
+      }];
+
+      return {
+        init: function(el) {
+          // populate html
+          el.innerHTML = ITEMS.map(function(group) {
+            return '<optgroup label="' + group.name + '">' +
+              group.kids.map(function(row) {
+                return '<option ' +
+                  'value="' + row.id + '" ' +
+                  'title="' + row.text +'" ' +
+                  'data-num="' + row.num + '" ' +
+                  'data-den="' + row.den + '" ' +
+                  (row.selected ? 'selected="selected" ' : '') +
+                '>' +
+                  row.name +
+                '</option>';
+              }).join('') +
+            '</optgroup>';
+          }).join('');
+
+          // bind to change event
+          on(el, {
+            change: function() {
+              setTimeout(function() {
+                var data = el.options[el.selectedIndex].dataset;
+
+                TableModel.set_view({
+                  num: data.num,
+                  den: data.den,
+                });
+              }, 10);
+            },
+          });
+        },
+      };
+    })(),
+
     table: (function() {
       var wrap_el = null;
 
@@ -874,13 +1001,13 @@ window.addEventListener('DOMContentLoaded', function() {
       }
 
       function format_number(view, v) {
-        return (view.den !== 'one') ? (v * 1000000).toFixed(2) : v;
+        return v;
       }
 
       function make_link(ids) {
-        var view = ChartModel.get_view(),
-            col_key = ChartModel.get_col_key(view.num),
-            title = ChartModel.get_title(view);
+        var view = TableModel.get_view(),
+            col_key = TableModel.get_col_key(view.num),
+            title = TableModel.get_title(view);
 
         var dates = DATA.data[ids.reduce(function(r, id) {
           var v = DATA.data[id].length;
@@ -916,10 +1043,10 @@ window.addEventListener('DOMContentLoaded', function() {
       }
 
       function make_table(ids) {
-        var view = ChartModel.get_view(),
-            col_key = ChartModel.get_col_key(view.num),
-            label = ChartModel.get_axis_label(view),
-            title = ChartModel.get_title(view);
+        var view = TableModel.get_view(),
+            col_key = TableModel.get_col_key(view.num),
+            label = TableModel.get_axis_label(view),
+            title = TableModel.get_title(view);
 
         var dates = DATA.data[ids.reduce(function(r, id) {
           var v = DATA.data[id].length;
@@ -999,7 +1126,7 @@ window.addEventListener('DOMContentLoaded', function() {
           });
 
           // bind to chart model
-          ChartModel.on('change', function() {
+          TableModel.on('change', function() {
             refresh();
           });
         },
@@ -1014,6 +1141,7 @@ window.addEventListener('DOMContentLoaded', function() {
   });
 
   // init chart model, bind to change event
+  // FIXME: move this to view init?
   ChartModel.on('change', function(view) {
     Views.charts.refresh();
   });
@@ -1025,4 +1153,5 @@ window.addEventListener('DOMContentLoaded', function() {
   Views.charts.init(E.map);
   Views.table.init(E.data);
   Views.yaxis.init(E.y_axis);
+  Views.table_units.init(E.table_units);
 });
