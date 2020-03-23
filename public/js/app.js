@@ -1002,11 +1002,19 @@ window.addEventListener('DOMContentLoaded', function() {
 
       var DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
       function format_date(s) {
-        return (s || '').replace(DATE_RE, '$2/$3');
+        return (s || '').replace(DATE_RE, '$2/$3').replace(/^0*/, '');
       }
 
       function format_number(view, v) {
         return v;
+      }
+
+      function format_population(v) {
+        if (v > 1000000) {
+          return '' + (v / 1000000.0).toFixed(1) + 'M';
+        } else if (v > 1000) {
+          return '' + (v / 1000.0).toFixed(1) + 'k';
+        }
       }
 
       function get_csv_name(view) {
@@ -1026,7 +1034,7 @@ window.addEventListener('DOMContentLoaded', function() {
         });
 
         var csv_data = [
-          ['State', 'Population'].concat(dates.map(function(date) {
+          ['State', '', 'Population'].concat(dates.map(function(date) {
             return '"' + date + '"';
           })).join(','),
         ].concat(ids.map(function(id) {
@@ -1035,7 +1043,8 @@ window.addEventListener('DOMContentLoaded', function() {
           var den = States.get_denominator_value(view.den, id);
 
           return [
-            '"' + state.name + ' (' + id + ')"',
+            '"' + state.name + '"',
+            id,
             state.population,
           ].concat(DATA.data[id].map(function(row) {
             return format_number(view, row[col_key] / den);
@@ -1054,60 +1063,115 @@ window.addEventListener('DOMContentLoaded', function() {
         '</p>';
       }
 
-      function make_table(ids) {
-        var view = TableModel.get_view(),
-            col_key = TableModel.get_col_key(view.num),
-            label = TableModel.get_axis_label(view),
-            title = TableModel.get_title(view);
-
-        var dates = DATA.data[ids.reduce(function(r, id) {
+      function get_dates(ids) {
+        return DATA.data[ids.reduce(function(r, id) {
           var v = DATA.data[id].length;
           return (!r || (v > DATA.data[r].length)) ? id : r;
         })].map(function(row) {
           return row.date;
         });
+      }
+
+      function get_thead(view, dates) {
+        var label = TableModel.get_axis_label(view);
+
+        return [[{
+          name: '&nbsp;',
+          text: '',
+          css:  '',
+          span: 2,
+        }, {
+          name: label,
+          text: label,
+          css:  '',
+          span: dates.length,
+        }], [{
+          name: 'State',
+          text: 'State name and abbreviation.',
+          css:  'state-name',
+          span: 1,
+        }, {
+          name: 'Population',
+          text: 'State population.',
+          css:  'num state-pop',
+          span: 1,
+        }].concat(dates.map(function(date) {
+          var s = format_date(date);
+          return {
+            name: s,
+            text: label + ', ' + s,
+            css:  'num',
+            span: 1,
+          };
+        }))].map(function(ths) {
+          return '<tr>' +
+            ths.map(function(th) {
+              return '<th ' +
+                'class="' + th.css + '" ' +
+                'title="' + th.text + '" ' +
+                'colspan="' + th.span + '" ' +
+              '>' +
+                th.name +
+              '</th>';
+            }).join('') +
+          '</tr>';
+        }).join('');
+      }
+
+      function get_tbody(view, dates, ids) {
+        var label = TableModel.get_axis_label(view),
+            col_key = TableModel.get_col_key(view.num);
+
+        return ids.map(function(id) {
+          // get state data and denominator for state
+          var state = States.get_data(id),
+              den = States.get_denominator_value(view.den, id);
+
+          return '<tr>' +
+            [{
+              el:   'th',
+              name: state.name + ' (' + id + ')',
+              text: 'State name and abbreviation.',
+              css:  'state-name',
+            }, {
+              name: format_population(state.population),
+              text: id + ' population: ' + state.population,
+              css:  'num state-pop',
+            }].concat(DATA.data[id].map(function(row) {
+              var val = format_number(view, row[col_key] / den),
+                  tip = label + ' in ' + id + ' as of ' + row.date + ': ' + val;
+
+              return {
+                name: val,
+                text: tip,
+                css:  'num',
+              };
+            })).map(function(col) {
+              var el = (col.el || 'td');
+              return '<' + el +' ' +
+                'class="' + col.css + '" ' +
+                'title="' + col.text + '" ' +
+              '>' +
+                col.name +
+              '</' + el + '>';
+            }).join('') +
+          '</tr>';
+        }).join('');
+      }
+
+      function make_table(ids) {
+        // get view and dates
+        var view = TableModel.get_view(),
+            dates = get_dates(ids);
 
         return '<table>' +
           // '<caption>' + title + '</caption>' +
           '<thead>' +
-            '<tr>' +
-              '<th colspan="2">&nbsp;</th>' +
-              '<th colspan="' + dates.length + '">' +
-                label +
-              '</th>' +
-            '</tr>' +
-
-            '<tr>' +
-              '<th class="state-name">State</th>' +
-              '<th class="num state-pop">Population</th>' +
-
-              dates.map(function(date) {
-                return '<th>' + format_date(date) + '</th>';
-              }).join('') +
-            '</tr>' +
+            get_thead(view, dates) +
           '</thead>' +
 
-          '<tbody>' + ids.map(function(id) {
-            // get state data and denominator for state
-            var state = States.get_data(id);
-            var den = States.get_denominator_value(view.den, id);
-
-            return '<tr>' +
-              '<th class="state-name">' +
-                state.name + ' (' + id + ')' +
-              '</th>' +
-
-              '<td class="num state-pop">' +
-                state.population +
-              '</td>' +
-
-              DATA.data[id].map(function(row) {
-                return '<td class="num">' +
-                  format_number(view, row[col_key] / den) +
-                '</td>';
-              }).join('') +
-            '</tr>';
-          }).join('') +
+          '<tbody>' +
+            get_tbody(view, dates, ids) +
           '</tbody>' +
         '</table>';
       }
