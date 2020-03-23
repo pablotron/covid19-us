@@ -431,11 +431,28 @@ window.addEventListener('DOMContentLoaded', function() {
         }
       }
 
+      var TEXTS = {
+        cases:      'Number of Cases',
+        deaths:     'Number of Deaths',
+        population: 'Capita',
+        area_land:  'Square Mile',
+      };
+
+      function get_axis_text(view) {
+        // build label text
+        var den = (view.den !== 'one') ? [TEXTS[view.den]] : [];
+        return [TEXTS[view.num]].concat(den).join(' Per ');
+      }
+
       // set axis label and char title
       function set_text(options, view) {
-        var s = [view.num, view.den].join(' / ')
+        var s = get_axis_text(view);
+
+        // set axis label
         options.scales.yAxes[0].scaleLabel.labelString = s;
-        options.title.text = s + ' by Time';
+
+        // set chart title
+        options.title.text = s + ' by State vs. Time';
       }
 
       function refresh() {
