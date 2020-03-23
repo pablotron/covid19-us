@@ -12,6 +12,11 @@ window.addEventListener('DOMContentLoaded', function() {
     return r;
   }, {});
 
+  // get today's date as an iso8601 (YYYY-MM-DD) string
+  function get_today() {
+    return (new Date()).toISOString().replace(/T.+$/, '');
+  }
+
   // bind dom event handlers
   function on(el, evs) {
     for (var ev in evs) {
@@ -1004,10 +1009,14 @@ window.addEventListener('DOMContentLoaded', function() {
         return v;
       }
 
+      function get_csv_name(view) {
+       var title = TableModel.get_title(view);
+       return 'COVID-19 US - ' + title + ' (' + get_today() + ').csv';
+      }
+
       function make_link(ids) {
         var view = TableModel.get_view(),
-            col_key = TableModel.get_col_key(view.num),
-            title = TableModel.get_title(view);
+            col_key = TableModel.get_col_key(view.num);
 
         var dates = DATA.data[ids.reduce(function(r, id) {
           var v = DATA.data[id].length;
@@ -1033,13 +1042,16 @@ window.addEventListener('DOMContentLoaded', function() {
           })).join(',');
         })).join('\n') + '\n';
 
-        return '<a ' +
-          'download="' + title + '.csv"' +
-          'title="Download results as a CSV file." ' +
-          'href="data:text/csv;charset=utf-8,' + encodeURI(csv_data) + '" ' +
-        '>' +
-          'Download' +
-        '</a>';
+        return '<p>' +
+          '<a ' +
+            'class="csv" ' +
+            'download="' + get_csv_name(view) + '"' +
+            'title="Download results as a CSV file." ' +
+            'href="data:text/csv;charset=utf-8,' + encodeURI(csv_data) + '" ' +
+          '>' +
+            'Download Results' +
+          '</a>' +
+        '</p>';
       }
 
       function make_table(ids) {
