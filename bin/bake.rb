@@ -121,7 +121,7 @@ Dir['%s/%s' % [DATA_DIR, 'csse-daily/*.csv']].each do |csv_path|
 end
 
 # load areas
-AREAS = load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
+load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
   DATA_COLS[:areas].reduce({}) do |r, col|
     val = row[col[:src]]
 
@@ -136,9 +136,13 @@ AREAS = load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
 
     r
   end
-}.reduce({}) do |r, row|
-  r[NAMES[row[:name]]] = row
-  r
+}.each do |row|
+  STATES[INDEX[NAMES[row[:name]]]].update(%i{
+    area_all_sq_mi
+    area_land_sq_mi
+  }.each.with_object({}) do |k, r|
+    r[k] = row[k]
+  end)
 end
 
 # build export data
@@ -154,90 +158,35 @@ REAL_DATA = DATA.keys.each.with_object({}) do |st, r|
   }
 end
 
-# generate pre-sorted data
-SORTS = {
-  cases: INDEX.keys.map { |id|
-    { id: id, val: REAL_DATA[id].last[:confirmed] }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
+def get_value(type, id)
+  case type
+  when :cases
+    REAL_DATA[id].last[:confirmed]
+  when :deaths
+    REAL_DATA[id].last[:deaths]
+  when :population
+    STATES[INDEX[id]][:population]
+  when :area_land
+    STATES[INDEX[id]][:area_land_sq_mi]
+  when :one
+    1
+  else
+    raise "unknown type: #{type}"
+  end
+end
 
-  population: INDEX.keys.map { |id|
-    { id: id, val: STATES[INDEX[id]][:population] }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  deaths: INDEX.keys.map { |id|
-    { id: id, val: REAL_DATA[id].last[:deaths] }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  cases_per_capita: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:confirmed]
-    lo = STATES[INDEX[id]][:population]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  cases_per_area_all: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:confirmed]
-    lo = AREAS[id][:area_all_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  cases_per_area_land: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:confirmed]
-    lo = AREAS[id][:area_land_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  deaths_per_capita: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:deaths]
-    lo = STATES[INDEX[id]][:population]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  deaths_per_area_all: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:deaths]
-    lo = AREAS[id][:area_all_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  deaths_per_area_land: INDEX.keys.map { |id|
-    hi = REAL_DATA[id].last[:deaths]
-    lo = AREAS[id][:area_land_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  population_per_area_all: INDEX.keys.map { |id|
-    hi = STATES[INDEX[id]][:population]
-    lo = AREAS[id][:area_all_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-
-  population_per_area_land: INDEX.keys.map { |id|
-    hi = STATES[INDEX[id]][:population]
-    lo = AREAS[id][:area_land_sq_mi]
-    { id: id, val: 1.0 * hi / lo }
-  }.sort { |a, b|
-    a[:val] <=> b[:val]
-  },
-}
+# iterate through numerators and denominators to build hash of
+# pre-sorted values
+SORTS = %i{cases deaths population}.each.with_object({}) do |num, r|
+  %i{one population area_land}.each.with_object(r) do |den, r|
+    r['%s_%s' % [num, den]] = INDEX.keys.map { |id|
+      { id: id, val: 1.0 * get_value(num, id) / get_value(den, id) }
+    }.sort { |a, b|
+      r = (a[:val] <=> b[:val])
+      (r == 0) ? (a[:id] <=> b[:id]) : r
+    }
+  end
+end
 
 puts JSON({
   states: {

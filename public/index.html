@@ -22,12 +22,18 @@
       #masks tbody th { font-size: 80%; text-align: right; }
       #masks button.active { font-weight: bold; }
 
-      label[for="picker"] {
+      .selects td.label {
         font-family: verdana, arial, sans-serif;
         font-size: 80%;
         font-weight: bold;
         text-align: right;
       }
+
+      .selects td..menu {
+        text-align: left;
+      }
+
+      .chart-wrap { width: 800px; }
     </style>
   </head>
 
@@ -40,323 +46,60 @@
       height='495'
     ></object>
 
-    <table id='masks' class='hidden'>
-      <thead>
-        <tr>
-          <th>&nbsp;</th>
-          <th colspan='3'>
-            Cases
-          </th>
-
-          <th>&nbsp;</th>
-
-          <th colspan='3'>
-            Deaths
-          </th>
-
-          <th>&nbsp;</th>
-
-          <th colspan='2'>
-            Population
-          </th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <th>Highest</th>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest number of cases per capita.'
-            data-id='cases_per_capita'
-            data-sort='desc'
-          >
-            Per Capita
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest number of cases per square mile of land.'
-            data-id='cases_per_area_land'
-            data-sort='desc'
-          >
-            Density
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest absolute number of cases.'
-            data-id='cases'
-            data-sort='desc'
-          >
-            Absolute
-          </button>
-        </td>
-
-        <td>&nbsp;</td>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest number of deaths per capita.'
-            data-id='deaths_per_capita'
-            data-sort='desc'
-          >
-            Per Capita
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest number of deaths per square mile of land.'
-            data-id='deaths_per_area_land'
-            data-sort='desc'
-          >
-            Density
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest absolute number of deaths.'
-            data-id='cases'
-            data-sort='desc'
-          >
-            Absolute
-          </button>
-        </td>
-
-        <td>&nbsp;</td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the highest population per square mile of land.'
-            data-id='population_per_area_land'
-            data-sort='desc'
-          >
-            Density
-          </button>
-        </td>
-
-
-        <td>
-          <button
-            class='mask'
-            title='States with the highest absolute population.'
-            data-id='population'
-            data-sort='desc'
-          >
-            Absolute
-          </button>
-        </td>
-      </tr>
-
+    <table class='selects'>
       <tr>
-        <th>Lowest</th>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest number of cases per capita.'
-            data-id='cases_per_capita'
-            data-sort='asc'
+        <td class='label'>
+          <label
+            for='states'
+            title='Select states on map by filter.'
           >
-            Per Capita
-          </button>
+            Map
+          </label>
         </td>
 
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest number of cases per capita.'
-            data-id='cases_per_area_land'
-            data-sort='asc'
+        <td class='menu'>
+          <select
+            id='states'
+            title='Select states on map by filter.'
           >
-            Density
-          </button>
-        </td>
+          </select>
 
-        <td>
           <button
-            class='mask'
-            title='Select the 5 states with the lowest number by number of cases.'
-            data-id='cases'
-            data-sort='asc'
-          >
-            Absolute
-          </button>
-        </td>
-
-        <td>&nbsp;</td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest number of deaths per capita.'
-            data-id='deaths_per_capita'
-            data-sort='asc'
-          >
-            Per Capita
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest number of deaths per square mile of land.'
-            data-id='deaths_per_area_land'
-            data-sort='asc'
-          >
-            Density
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest number of deaths.'
-            data-id='deaths'
-            data-sort='asc'
-          >
-            Absolute
-          </button>
-        </td>
-
-        <td>&nbsp;</td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest population per square mile of land.'
-            data-id='population_per_area_land'
-            data-sort='asc'
-          >
-            Density
-          </button>
-        </td>
-
-        <td>
-          <button
-            class='mask'
-            title='Select the 5 states with the lowest absolute populations.'
-            data-id='population'
-            data-sort='asc'
-          >
-            Absolute
-          </button>
-        </td>
-      </tr>
-
-      <tr>
-        <th>Other</th>
-
-        <td>
-          <button
-            class='mask'
-            title='Clear all selected states.'
-            data-id='none'
+            id='none'
+            title='Clear selected states.'
           >
             Clear
           </button>
         </td>
+      </tr>
 
-        <td colspan='4'>
-          <select
-            id='map-bg'
-            title='Choose map background style.'
+      <tr>
+        <td class='label'>
+          <label
+            for='y-axis'
+            title='Select Y axis of chart.'
           >
-            <option
-              value='none'
-              title='Default background..'
-            >
-              Default
-            </style>
-
-            <optgroup label='Cases'>
-              <option
-                value='cases_per_capita'
-                title='Number of cases per capita.'
-              />
-                Cases Per Capita
-              </option>
-
-              <option
-                value='cases_per_area_land'
-                title='Number of cases per square mile of land.'
-              >
-                Density
-              </option>
-
-              <option
-                value='cases'
-                title='Number of cases.'
-              >
-                Absolute
-              </option>
-            </optgroup>
-
-            <optgroup label='Deaths'>
-              <option
-                value='deaths_per_capita'
-                title='Number of deaths per capita.'
-              >
-                Deaths Per Capita
-              </option>
-
-              <option
-                value='deaths_per_area_land'
-                title='Number of cases per square mile of land.'
-              >
-                Density
-              </option>
-
-              <option
-                value='deaths'
-                title='Number of deaths.'
-              >
-                Absolute
-              </option>
-            </optgroup>
-          </button>
+            Chart
+          </label>
         </td>
-        <td colspan='4'>
+
+        <td class='menu'>
+          <select
+            id='y-axis'
+            title='Select Y axis of chart.'
+          >
+          </select>
         </td>
       </tr>
-    </table>
+    </table><!-- selects -->
 
-    <p>
-      <label for='picker'>
-        Pick
-      </label>
-
-      <select
-        id='picker'
-        title='Select states matching criteria.'
-      >
-      </select>
-    </p>
-
-    <div id='charts' style='width: 800px'>
+    <div class='hidden chart-wrap' data-set='confirmed'>
       <canvas
         id='confirmed'
         width='300'
         height='100'
       ></canvas>
-
-      <canvas
-        id='deaths'
-        width='300'
-        height='100'
-      ></canvas>
-    </div>
+    </div><!-- chart-wrap -->
 
     <div id='data'>
     </div>

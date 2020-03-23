@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'map-bg', 'picker', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
+  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths'].reduce(function(r, id) {
     r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
@@ -31,40 +31,22 @@ window.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    var FILTERS = {
-      cases: function(id) {
-        var data = DATA.data[id];
-        return data[data.length - 1].confirmed;
-      },
+    function get_ids(num, den, sort, num_rows) {
+      var sort_id = [num, den].join('_'),
+          rows = (num !== 'none') ? DATA.sorts[sort_id] : [],
+          ofs = (sort === 'lo') ? 0 : (rows.length - num_rows),
+          r = (sort === 'lo') ? rows.slice(0, num_rows) : rows.slice(ofs);
 
-      deaths: function(id) {
-        var data = DATA.data[id];
-        return data[data.length - 1].deaths;
-      },
-
-      population: function(id) {
-        return DATA.states.data[DATA.states.index[id]].population;
-      },
-
-      per_capita: function(id) {
-        var pop = DATA.states.data[DATA.states.index[id]].population,
-            data = DATA.data[id];
-        return Math.round(1000.0 * data[data.length - 1].confirmed / pop);
-      },
-    };
-
-    function get_ids(filter_id, sort, num) {
-      var rows = DATA.sorts[filter_id],
-          ofs = (sort === 'asc') ? 0 : (rows.length - num),
-          r = (sort === 'asc') ? rows.slice(0, num) : rows.slice(ofs);
       console.log({
-        filter_id: filter_id,
-        sort: sort,
         num: num,
+        den, den,
+        sort: sort,
+        sort_id: sort_id,
+        num_rows: num_rows,
         rows: rows,
-        filter_id: filter_id,
         ids: r,
       });
+
       return r;
     }
 
@@ -167,28 +149,16 @@ window.addEventListener('DOMContentLoaded', function() {
         return r;
       },
 
-      set_filter: function(filter_id, sort, num) {
-        if (filter_id == 'all') {
-          // add all inactive states
-          States.get_inactive().forEach(function(id) {
-            States.add_flag(id, 'active');
-          });
-        } else if (filter_id == 'none') {
-          // clear all active states
-          States.get_active().forEach(function(id) {
-            States.rm_flag(id, 'active');
-          });
-        } else {
-          // clear all active states
-          States.get_active().forEach(function(id) {
-            States.rm_flag(id, 'active');
-          });
+      set_filter: function(num, den, sort, num_rows) {
+        // clear all active states
+        States.get_active().forEach(function(id) {
+          States.rm_flag(id, 'active');
+        });
 
-          // get by filter
-          get_ids(filter_id, sort, num).forEach(function(id) {
-            States.add_flag(id, 'active');
-          });
-        }
+        // get by filter
+        get_ids(num, den, sort, num_rows).forEach(function(id) {
+          States.add_flag(id, 'active');
+        });
       },
 
       get_inactive: function() {
@@ -197,6 +167,62 @@ window.addEventListener('DOMContentLoaded', function() {
         }).filter(function(id) {
           return (!FLAGS[id] || (FLAGS[id].indexOf('active') === -1));
         });
+      },
+
+      /**
+       * Get denominator value for state.
+       */
+      get_denominator_value: function(type, id) {
+        switch (type) {
+        case 'population':
+          var ofs = DATA.states.index[id];
+          return 1.0 * DATA.states.data[ofs].population;
+        case 'area_land':
+          var ofs = DATA.states.index[id];
+          return 1.0 * DATA.states.data[ofs].area_land_sq_mi;
+        case 'one':
+          return 1;
+        default:
+          console.error('unknown denominator: ' + type);
+        }
+      }
+    };
+  })();
+
+  var ChartModel = (function() {
+    // internal event listeners
+    var ehs = {};
+
+    // view state
+    var view = { num: 'cases', den: 'one' };
+
+
+    function fire(ev, args) {
+      (ehs[ev] || []).forEach(function(fn) {
+        fn.apply(null, args || []);
+      });
+    }
+
+    return {
+      on: function(ev, fn) {
+        if (ehs[ev]) {
+          ehs[ev].push(fn);
+        } else {
+          ehs[ev] = [fn];
+        }
+
+        return this;
+      },
+
+      set_view: function(data) {
+        view = data;
+        console.log(view);
+        fire('change', view);
+      },
+
+      get_view: function() {
+        // return current view
+        return view;
       },
     };
   })();
@@ -384,13 +410,85 @@ window.addEventListener('DOMContentLoaded', function() {
       var CHARTS = {}, COLS = [{
         id:   'confirmed',
         name: 'Confirmed Cases',
-      }, {
-        id:   'deaths',
-        name: 'Deaths',
+/*
+ *       }, {
+ *         id:   'deaths',
+ *         name: 'Deaths',
+ */
       // }, {
       //   id:   'recovered',
       //   name: 'Recovered',
       }];
+
+      function get_col_key(num) {
+        if (num == 'cases') {
+          return 'confirmed';
+        } else if (num == 'deaths') {
+          return 'deaths';
+        } else {
+          // log error
+          console.error('unknown numerator: ' + num);
+        }
+      }
+
+      // set axis label and char title
+      function set_text(options, view) {
+        var s = [view.num, view.den].join(' / ')
+        options.scales.yAxes[0].scaleLabel.labelString = s;
+        options.title.text = s + ' by Time';
+      }
+
+      function refresh() {
+        var ids = States.get_active(),
+              view = ChartModel.get_view();
+
+        // FIXME: hack
+        var col_key = get_col_key(view.num);
+
+        COLS.forEach(function(col) {
+          var chart = CHARTS[col.id],
+              config_data = chart.config.data;
+
+          // show chart
+          chart.wrap.classList.remove('hidden');
+
+          // update axis label and title
+          set_text(chart.config.options, view);
+
+          // rebuild labels
+          config_data.labels = ids.filter(function(id) {
+            return !!DATA.data[id];
+          }).map(function(id) {
+            return DATA.states.data[DATA.states.index[id]];
+          });
+
+          // rebuild datasets
+          config_data.datasets = ids.filter(function(id) {
+            return !!DATA.data[id];
+          }).map(function(id) {
+            // get denominator for state
+            var den = States.get_denominator_value(view.den, id);
+
+            return {
+              label: States.get_name(id),
+
+              lineTension: 0,
+              borderColor: Views.color.get(id),
+              fill: false,
+
+              data: DATA.data[id].map(function(row) {
+                return {
+                  x: row.date,
+                  y: row[col_key] / den,
+                };
+              }),
+            };
+          });
+
+          // update chart
+          chart.chart.update();
+        });
+      }
 
       return {
         init: function() {
@@ -437,179 +535,282 @@ window.addEventListener('DOMContentLoaded', function() {
             };
 
             // create chart
-            var chart = new Chart(E[col.id], config);
+            var chart = new Chart(E[col.id], config),
+                wrap_css = '.chart-wrap[data-set="' + col.id + '"]';
 
             // cache config and chart
             CHARTS[col.id] = {
               config: config,
               chart: chart,
+              wrap: document.querySelector(wrap_css),
             };
           });
 
           States.on('change', function(id, flag) {
-            var ids = States.get_active(),
-                st = DATA.states.data[DATA.states.index[id]];
-
-            if (flag !== 'active') {
-              return;
+            if (flag === 'active') {
+              // refresh charts
+              refresh();
             }
-
-            COLS.forEach(function(col) {
-              var chart = CHARTS[col.id],
-                  config_data = chart.config.data;
-
-              // rebuild labels
-              config_data.labels = ids.filter(function(id) {
-                return !!DATA.data[id];
-              }).map(function(id) {
-                return DATA.states.data[DATA.states.index[id]];
-              });
-
-              // rebuild datasets
-              config_data.datasets = ids.filter(function(id) {
-                return !!DATA.data[id];
-              }).map(function(id) {
-                return {
-                  label: States.get_name(id),
-
-                  lineTension: 0,
-                  borderColor: Views.color.get(id),
-                  fill: false,
-
-                  data: DATA.data[id].map(function(row) {
-                    return {
-                      x: row.date,
-                      y: row[col.id],
-                    };
-                  }),
-                };
-              });
-
-              // update chart
-              chart.chart.update();
-            });
           });
-        }
+        },
+
+        refresh: function() {
+          // refresh charts
+          refresh();
+        },
       };
     })(),
 
     picker: (function() {
-      var PICKS = [{
+      var ITEMS = [{
         name: 'General',
+
         kids: [{
-          id: 'none',
           name: 'None',
           text: 'Clear all selections.',
+
+          sort: 'hi',
+          num:  'none',
+          den:  'one',
+
+          selected: true,
         }],
       }, {
         name: 'Highest Cases',
+
         kids: [{
-          id: 'cases_per_capita',
+          name: 'Highest Total Number of Cases',
+          text: 'States with the highest total number of cases.',
+
+          sort: 'hi',
+          num:  'cases',
+          den:  'one',
+        }, {
           name: 'Highest Cases Per Capita',
-          sort: 'desc',
           text: 'States with the highest number of total cases per capita.',
+
+          sort: 'hi',
+          num:  'cases',
+          den:  'population',
         }, {
-          id: 'cases_per_area_land',
-          sort: 'desc',
-          name: 'Highest Case Density',
+          name: 'Highest Cases Per Square Mile',
           text: 'States with the highest number of cases per square mile of land.',
-        }, {
-          id: 'cases',
-          sort: 'desc',
-          name: 'Highest Number of Cases',
-          text: 'States with the highest absolute number of cases.',
+
+          sort: 'hi',
+          num:  'cases',
+          den:  'area_land',
         }],
       }, {
         name: 'Highest Deaths',
         kids: [{
-          id: 'deaths_per_capita',
-          sort: 'desc',
+          name: 'Highest Total Number of Deaths',
+          text: 'States with the highest absolute number of deaths.',
+
+          sort: 'hi',
+          num:  'deaths',
+          den:  'one',
+        }, {
           name: 'Highest Deaths Per Capita',
           text: 'States with the highest number of deaths per capita.',
+
+          sort: 'hi',
+          num:  'deaths',
+          den:  'population',
         }, {
-          id: 'deaths_per_area_land',
-          sort: 'desc',
-          name: 'Highest Death Density',
+          name: 'Highest Deaths Per Square Mile',
           text: 'States with the highest number of deaths per square mile of land.',
-        }, {
-          id: 'deaths',
-          sort: 'desc',
-          name: 'Highest Number of Deaths',
-          text: 'States with the highest absolute number of deaths.',
+
+          sort: 'hi',
+          num:  'deaths',
+          den:  'area_land',
         }],
       }, {
         name: 'Highest Population',
+
         kids: [{
-          id: 'population_per_area_land',
-          name: 'Highest Population Density',
-          sort: 'desc',
-          text: 'States with the highest population per square mile of land.',
-        }, {
-          id: 'population',
-          sort:'desc',
-          name: 'Highest Population',
+          name: 'Highest Total Population',
           text: 'States with the highest absolute population.',
+
+          sort: 'hi',
+          num:  'population',
+          den:  'one',
+        }, {
+          name: 'Highest Population Per Square Mile',
+          text: 'States with the highest population per square mile of land.',
+
+          sort: 'hi',
+          num:  'population',
+          den:  'area_land',
         }],
       }, {
         name: 'Lowest Cases',
         kids: [{
-          id: 'cases_per_capita',
+          name: 'Lowest Total Number of Cases',
+          text: 'States with the lowest number of cases.',
+
+          sort: 'lo',
+          num:  'cases',
+          den:  'one',
+        }, {
           name: 'Lowest Cases Per Capita',
-          sort: 'asc',
-          text: 'States with the lowest number of total cases per capita.',
+          text: 'States with the lowest number of cases per capita.',
+
+          sort: 'lo',
+          num:  'cases',
+          den:  'population',
         }, {
-          id: 'cases_per_area_land',
-          sort: 'asc',
-          name: 'Lowest Case Density',
+          name: 'Lowest Cases Per Square Mile',
           text: 'States with the lowest number of cases per square mile of land.',
-        }, {
-          id: 'cases',
-          sort: 'asc',
-          name: 'Lowest Number of Cases',
-          text: 'States with the lowest absolute number of cases.',
+
+          sort: 'lo',
+          num:  'cases',
+          den:  'area_land',
         }],
       }, {
         name: 'Lowest Deaths',
         kids: [{
-          id: 'deaths_per_capita',
-          sort: 'asc',
+          name: 'Lowest Total Number of Deaths',
+          text: 'States with the lowest total number of deaths.',
+
+          sort: 'lo',
+          num:  'deaths',
+          den:  'one',
+        }, {
           name: 'Lowest Deaths Per Capita',
           text: 'States with the lowest number of deaths per capita.',
+
+          sort: 'lo',
+          num:  'deaths',
+          den:  'population',
         }, {
-          id: 'deaths_per_area_land',
-          sort: 'asc',
-          name: 'Lowest Death Density',
+          name: 'Lowest Deaths Per Square Mile',
           text: 'States with the lowest number of deaths per square mile of land.',
-        }, {
-          id: 'deaths',
-          sort: 'asc',
-          name: 'Lowest Number of Deaths',
-          text: 'States with the lowest absolute number of deaths.',
+
+          sort: 'lo',
+          num:  'deaths',
+          den:  'area_land',
         }],
       }, {
         name: 'Lowest Population',
         kids: [{
-          id: 'population_per_area_land',
-          name: 'Lowest Population Density',
-          sort: 'asc',
-          text: 'States with the lowest population per square mile of land.',
+          name: 'Lowest Total Population',
+          text: 'States with the lowest total population.',
+
+          sort: 'lo',
+          num:  'population',
+          den:  'one',
         }, {
-          id: 'population',
-          sort:'asc',
-          name: 'Lowest Population',
-          text: 'States with the lowest absolute population.',
+          name: 'Lowest Population Per Square Mile',
+          text: 'States with the lowest population per square mile of land.',
+
+          sort: 'lo',
+          num:  'population',
+          den:  'area_land',
+        }],
+      }];
+
+      return {
+        init: function(menu_el, none_el) {
+          // populate html
+          menu_el.innerHTML = ITEMS.map(function(group) {
+            return '<optgroup label="' + group.name + '">' +
+              group.kids.map(function(row) {
+                return '<option ' +
+                  'value="' + row.id + '" ' +
+                  'title="' + row.text +'" ' +
+                  'data-num="' + row.num + '" ' +
+                  'data-den="' + row.den + '" ' +
+                  'data-sort="' + row.sort + '" ' +
+                  (row.selected ? 'selected="selected" ' : '') +
+                '>' +
+                  row.name +
+                '</option>';
+              }).join('') +
+            '</optgroup>';
+          }).join('');
+
+          // bind to change event
+          on(menu_el, {
+            change: function() {
+              setTimeout(function() {
+                var data = menu_el.options[menu_el.selectedIndex].dataset;
+                States.set_filter(data.num, data.den, data.sort, 5);
+              }, 10);
+            },
+          });
+
+          on(none_el, {
+            click: function() {
+              // clear states
+              States.set_filter('none');
+              menu_el.selectedIndex = 0;
+              return false;
+            },
+          });
+        },
+      };
+    })(),
+
+    yaxis: (function() {
+      var ITEMS = [{
+        name: 'Cases',
+
+        kids: [{
+          name: 'Total Number of Cases',
+          text: 'Show total number of cases.',
+
+          num:  'cases',
+          den:  'one',
+
+          selected: true,
+        }, {
+          name: 'Cases Per Capita',
+          text: 'Show number of cases per capita.',
+
+          num:  'cases',
+          den:  'population',
+        }, {
+          name: 'Cases Per Square Mile',
+          text: 'Show number of cases per square mile of land.',
+
+          num:  'cases',
+          den:  'area_land',
+        }],
+      }, {
+        name: 'Deaths',
+        kids: [{
+          name: 'Total Number of Deaths',
+          text: 'Show total number of deaths.',
+
+          num:  'deaths',
+          den:  'one',
+        }, {
+          name: 'Deaths Per Capita',
+          text: 'Show number of deaths per capita.',
+
+          num:  'deaths',
+          den:  'population',
+        }, {
+          name: 'Deaths Per Square Mile',
+          text: 'Show number of deaths per square mile of land.',
+
+          num:  'deaths',
+          den:  'area_land',
         }],
       }];
 
       return {
         init: function(el) {
           // populate html
-          el.innerHTML = PICKS.map(function(group) {
+          el.innerHTML = ITEMS.map(function(group) {
             return '<optgroup label="' + group.name + '">' +
               group.kids.map(function(row) {
                 return '<option ' +
                   'value="' + row.id + '" ' +
                   'title="' + row.text +'" ' +
+                  'data-num="' + row.num + '" ' +
+                  'data-den="' + row.den + '" ' +
+                  (row.selected ? 'selected="selected" ' : '') +
                 '>' +
                   row.name +
                 '</option>';
@@ -621,67 +822,15 @@ window.addEventListener('DOMContentLoaded', function() {
           on(el, {
             change: function() {
               setTimeout(function() {
-                States.set_filter(el.value, data.sort, 5);
+                var data = el.options[el.selectedIndex].dataset;
+
+                ChartModel.set_view({
+                  num: data.num,
+                  den: data.den,
+                });
               }, 10);
             },
           });
-        },
-      };
-    })(),
-
-    masks: (function() {
-      var ELS = document.getElementsByClassName('mask'),
-          MS = 10, // delay, in ms
-          timeout = null,
-          active_btn = null;
-
-      function clear() {
-        timeout = null;
-
-        for (var i = 0; i < ELS.length; i++) {
-          if (ELS[i] !== active_btn) {
-            ELS[i].classList.remove('active');
-          }
-        }
-
-        if (active_btn) {
-          // toggle active button
-          active_btn.classList.add('active');
-        }
-      }
-
-      return {
-        init: function() {
-          States.on('change', function(id, flag) {
-            if (flag === 'active') {
-              // clear active filter button
-              active_btn = null;
-
-              if (timeout !== null) {
-                // remove existing timeout
-                clearTimeout(timeout);
-              }
-
-              // set timeout
-              setTimeout(clear, MS);
-            }
-          });
-
-          for (var i = 0; i < ELS.length; i++) {
-            on(ELS[i], {
-              click: function(ev) {
-                var data = ev.target.dataset;
-                States.set_filter(data.id, data.sort, 5);
-
-                if (data.id !== 'none') {
-                  active_btn = ev.target;
-                }
-
-                // stop event
-                return false;
-              },
-            });
-          }
         },
       };
     })(),
@@ -694,10 +843,15 @@ window.addEventListener('DOMContentLoaded', function() {
     Views.map.update(id, flags);
   });
 
+  // init chart model, bind to change event
+  ChartModel.on('change', function(view) {
+    Views.charts.refresh();
+  });
+
   // init map events, charts, and button events
   Views.map.init(E.map);
-  Views.bg.init(E.map_bg);
-  Views.picker.init(E.picker);
+  // Views.bg.init(E.map_bg);
+  Views.picker.init(E.states, E.none);
   Views.charts.init(E.map);
-  Views.masks.init();
+  Views.yaxis.init(E.y_axis);
 });
