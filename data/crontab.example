@@ -1,3 +1,4 @@
 # set absolute path to live site, then invoke update script
+# (update 4 times daily at 5 minutes after the hour)
 COVID19_US_DIR=/home/someuser/git/covid19-us-live
-@hourly $COVID19_US_DIR/bin/cron.sh
+5 */6 * * * $COVID19_US_DIR/bin/cron.sh
