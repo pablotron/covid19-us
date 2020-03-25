@@ -101,9 +101,13 @@ JSON.parse(File.read(json_path)).each do |row|
   # convert date to YYYY-MM-DD
   date = row['date'].to_s.gsub(DATE_RE, '\\1-\\2-\\3')
 
-  if NAMES.values.include?(row['state'])
+  st = row['state']
+  if NAMES.values.include?(st)
+    # add date checked to STATES
+    STATES[INDEX[st]][:checked] = row['dateChecked']
+
     # add entry to DATA
-    DATA[row['state']][date] = {
+    DATA[st][date] = {
       date:       date,
       confirmed:  row['positive'] || 0,
       deaths:     row['death'] || 0,

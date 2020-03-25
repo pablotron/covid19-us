@@ -1131,7 +1131,7 @@ window.addEventListener('DOMContentLoaded', function() {
             [{
               el:   'th',
               name: state.name + ' (' + id + ')',
-              text: 'State name and abbreviation.',
+              text: 'Last Checked: ' + state.checked,
               css:  'state-name',
             }, {
               name: format_population(state.population),
