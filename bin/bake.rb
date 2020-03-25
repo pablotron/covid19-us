@@ -47,8 +47,6 @@ load_csv(File.expand_path('populations.csv', DATA_DIR)).each do |row|
   end
 end
 
-DATE_RE = %r{\A(?<m>\d+)-(?<d>\d+)-(?<y>\d+)\.csv\Z}
-
 DATA_COLS = {
   csse: [{
     src:  'Last Update',
@@ -95,30 +93,50 @@ DATA = Hash.new do |h, k|
   h[k] = Hash.new { |h2, k2| h2[k2] = {} }
 end
 
-# load time series data
-Dir['%s/%s' % [DATA_DIR, 'csse-daily/*.csv']].each do |csv_path|
-  if md = File.basename(csv_path).match(DATE_RE)
-    date = '%04d-%02d-%02d' % [md[:y].to_i, md[:m].to_i, md[:d].to_i]
-    load_csv(csv_path).select { |row|
-      row['Country/Region'] == 'US' &&
-      NAMES.key?(row['Province/State'])
-    }.each do |row|
-      DATA[NAMES[row['Province/State']]][date] = DATA_COLS[:csse].each.with_object({
-        date: date,
-      }) do |col, r|
-        val = row[col[:src]]
-        r[col[:dst]] = case col[:type]
-        when :int
-          (val && val =~ /\d+/) ? val.to_i : 0
-        when :float
-          (val && val =~ /\d+/) ? val.to_f : 0
-        else
-          val
-        end
-      end
-    end
+DATE_RE = /^(\d{4})(\d{2})(\d{2})$/
+
+# load time series data (covidtracking.com)
+json_path = '%s/daily.json' % [DATA_DIR, 'daily.json']
+JSON.parse(File.read(json_path)).each do |row|
+  # convert date to YYYY-MM-DD
+  date = row['date'].to_s.gsub(DATE_RE, '\\1-\\2-\\3')
+
+  if NAMES.values.include?(row['state'])
+    # add entry to DATA
+    DATA[row['state']][date] = {
+      date:       date,
+      confirmed:  row['positive'] || 0,
+      deaths:     row['death'] || 0,
+    }
   end
 end
+
+# DATE_RE = %r{\A(?<m>\d+)-(?<d>\d+)-(?<y>\d+)\.csv\Z}
+#
+# load time series data (old jh csse source)
+# Dir['%s/%s' % [DATA_DIR, 'csse-daily/*.csv']].each do |csv_path|
+#   if md = File.basename(csv_path).match(DATE_RE)
+#     date = '%04d-%02d-%02d' % [md[:y].to_i, md[:m].to_i, md[:d].to_i]
+#     load_csv(csv_path).select { |row|
+#       row['Country/Region'] == 'US' &&
+#       NAMES.key?(row['Province/State'])
+#     }.each do |row|
+#       DATA[NAMES[row['Province/State']]][date] = DATA_COLS[:csse].each.with_object({
+#         date: date,
+#       }) do |col, r|
+#         val = row[col[:src]]
+#         r[col[:dst]] = case col[:type]
+#         when :int
+#           (val && val =~ /\d+/) ? val.to_i : 0
+#         when :float
+#           (val && val =~ /\d+/) ? val.to_f : 0
+#         else
+#           val
+#         end
+#       end
+#     end
+#   end
+# end
 
 # load areas
 load_csv(File.expand_path('areas.csv', DATA_DIR)).map { |row|
