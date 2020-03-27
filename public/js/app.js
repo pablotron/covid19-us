@@ -215,17 +215,39 @@ window.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-      var TEXTS = {
-        cases:      'Number of Cases',
-        deaths:     'Number of Deaths',
-        population: 'Capita',
-        area_land:  'Square Mile',
-      };
+    var TEXTS = {
+      cases: {
+        name:   'Number of Cases',
+        delim:  ' Per ',
+      },
 
-      function get_axis_label(view) {
-        var den = (view.den !== 'one') ? [TEXTS[view.den]] : [];
-        return [TEXTS[view.num]].concat(den).join(' Per ');
-      }
+      deaths: {
+        name:   'Number of Deaths',
+        delim:  ' Per ',
+      },
+
+      population: {
+        name:   'Capita',
+        delim:  ' Per ',
+      },
+
+      density: {
+        name:   'Population Density',
+        delim:  ' By ',
+      },
+
+      area_land: {
+        name: 'Square Mile',
+        delim: ' Per ',
+      },
+    };
+
+    function get_axis_label(view) {
+      var den = (view.den !== 'one') ? [TEXTS[view.den].name] : [],
+          delim = (view.den !== 'one') ? TEXTS[view.den].delim : '';
+
+      return [TEXTS[view.num].name].concat(den).join(delim);
+    }
 
     return {
       on: function(ev, fn) {
