@@ -485,6 +485,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
     color: (function() {
       var COLORS = [
+        // original palette
         '#4dc9f6',
         '#f67019',
         '#f53794',
@@ -494,23 +495,42 @@ window.addEventListener('DOMContentLoaded', function() {
         '#00a950',
         '#58595b',
         '#8549ba',
+
+        // src: https://learnui.design/tools/data-color-picker.html#palette
+        // (note: probably shouldn't be mixing palettes here...)
+        '#003f5c',
+        '#2f4b7c',
+        '#665191',
+        '#a05195',
+        '#d45087',
+        '#f95d6a',
+        '#ff7c43',
+        '#ffa600',
       ];
 
       // hash string to u32.
       // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
       function hash(s) {
+        // seed, and also hash string twice to increase diffusion
         var r = 77245, l = s.length;
-        for (var i = 0; i < l; i++) {
-          var c = s.charCodeAt(i);
+        for (var i = 0; i < 2 * l; i++) {
+          var c = s.charCodeAt(i % l);
           r  = ((hash << 5) - r) + c;
           r |= 0;
         }
-        return r;
+
+        // mask to positive
+        return r & 0x7FFFFFFF;
       }
 
       return {
         get: function(id) {
-          return COLORS[hash(States.get_data(id).name) % COLORS.length];
+          var name = States.get_data(id).name,
+              ofs = hash(name) % COLORS.length;
+
+          console.log({ id: id, name: name, ofs: ofs, color: COLORS[ofs] });
+
+          return COLORS[ofs];
         },
       };
     })(),
