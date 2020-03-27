@@ -533,7 +533,7 @@ window.addEventListener('DOMContentLoaded', function() {
           var name = States.get_data(id).name,
               ofs = hash(name) % COLORS.length;
 
-          console.log({ id: id, name: name, ofs: ofs, color: COLORS[ofs] });
+          // console.log({ id: id, name: name, ofs: ofs, color: COLORS[ofs] });
 
           return COLORS[ofs];
         },
