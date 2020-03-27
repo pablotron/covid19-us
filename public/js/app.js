@@ -1071,14 +1071,22 @@ window.addEventListener('DOMContentLoaded', function() {
       }
 
       function format_number(view, v) {
-        return v;
+        if (v > 1000000) {
+          return '' + (v / 1000000.0).toFixed(1) + 'M';
+        } else if (v > 10000) {
+          return '' + (v / 1000.0).toFixed(1) + 'k';
+        } else {
+          return v;
+        }
       }
 
       function format_population(v) {
         if (v > 1000000) {
           return '' + (v / 1000000.0).toFixed(1) + 'M';
-        } else if (v > 1000) {
+        } else if (v > 10000) {
           return '' + (v / 1000.0).toFixed(1) + 'k';
+        } else {
+          return v;
         }
       }
 
@@ -1112,7 +1120,7 @@ window.addEventListener('DOMContentLoaded', function() {
             id,
             state.population,
           ].concat(DATA.data[id].map(function(row) {
-            return format_number(view, row[col_key] / den);
+            return row[col_key] / den;
           })).join(',');
         })).join('\n') + '\n';
 
@@ -1203,8 +1211,9 @@ window.addEventListener('DOMContentLoaded', function() {
               text: id + ' population: ' + state.population,
               css:  'num state-pop',
             }].concat(DATA.data[id].map(function(row) {
-              var val = format_number(view, row[col_key] / den),
-                  tip = label + ' in ' + id + ' as of ' + row.date + ': ' + val;
+              var raw = row[col_key] / den,
+                  val = format_number(view, raw),
+                  tip = label + ' in ' + id + ' as of ' + row.date + ': ' + raw;
 
               return {
                 name: val,
