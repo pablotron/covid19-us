@@ -182,11 +182,16 @@ window.addEventListener('DOMContentLoaded', function() {
        * Get denominator value for state.
        */
       get_denominator_value: function(type, id) {
+        var data = get_data(id);
+
         switch (type) {
         case 'population':
-          return 1.0 * get_data(id).population;
+          return 1.0 * data.population;
         case 'area_land':
-          return 1.0 * get_data(id).area_land_sq_mi;
+          return 1.0 * data.area_land_sq_mi;
+        case 'density':
+          // NOTE: *INVERSE* of population density
+          return 1.0 * data.area_land_sq_mi / data.population;
         case 'one':
           return 1;
         default:
@@ -698,6 +703,13 @@ window.addEventListener('DOMContentLoaded', function() {
           num:  'cases',
           den:  'one',
         }, {
+          name: 'Highest Cases by Population Density',
+          text: 'States with the highest number of cases multiplied by population density.',
+
+          sort: 'hi',
+          num:  'cases',
+          den:  'density',
+        }, {
           name: 'Highest Cases Per Capita',
           text: 'States with the highest number of total cases per capita.',
 
@@ -721,6 +733,13 @@ window.addEventListener('DOMContentLoaded', function() {
           sort: 'hi',
           num:  'deaths',
           den:  'one',
+        }, {
+          name: 'Highest Deaths by Population Density',
+          text: 'States with the highest number of deaths multiplied by population density.',
+
+          sort: 'hi',
+          num:  'deaths',
+          den:  'density',
         }, {
           name: 'Highest Deaths Per Capita',
           text: 'States with the highest number of deaths per capita.',
@@ -747,7 +766,7 @@ window.addEventListener('DOMContentLoaded', function() {
           num:  'population',
           den:  'one',
         }, {
-          name: 'Highest Population Per Square Mile',
+          name: 'Highest Population Density',
           text: 'States with the highest population per square mile of land.',
 
           sort: 'hi',
@@ -763,6 +782,13 @@ window.addEventListener('DOMContentLoaded', function() {
           sort: 'lo',
           num:  'cases',
           den:  'one',
+        }, {
+          name: 'Lowest Cases by Population Density',
+          text: 'States with the lowest number of cases multiplied by population density.',
+
+          sort: 'lo',
+          num:  'cases',
+          den:  'density',
         }, {
           name: 'Lowest Cases Per Capita',
           text: 'States with the lowest number of cases per capita.',
@@ -788,6 +814,13 @@ window.addEventListener('DOMContentLoaded', function() {
           num:  'deaths',
           den:  'one',
         }, {
+          name: 'Lowest Deaths by Population Density',
+          text: 'States with the lowest number of deaths multiplied by population density.',
+
+          sort: 'lo',
+          num:  'deaths',
+          den:  'density',
+        }, {
           name: 'Lowest Deaths Per Capita',
           text: 'States with the lowest number of deaths per capita.',
 
@@ -812,7 +845,7 @@ window.addEventListener('DOMContentLoaded', function() {
           num:  'population',
           den:  'one',
         }, {
-          name: 'Lowest Population Per Square Mile',
+          name: 'Lowest Population Density',
           text: 'States with the lowest population per square mile of land.',
 
           sort: 'lo',
@@ -889,6 +922,12 @@ window.addEventListener('DOMContentLoaded', function() {
 
           selected: true,
         }, {
+          name: 'Cases by Population Density',
+          text: 'Show number of total cases multiplied by population density.',
+
+          num:  'cases',
+          den:  'density',
+        }, {
           name: 'Cases Per Capita',
           text: 'Show number of cases per capita.',
 
@@ -909,6 +948,12 @@ window.addEventListener('DOMContentLoaded', function() {
 
           num:  'deaths',
           den:  'one',
+        }, {
+          name: 'Deaths by Population Density',
+          text: 'Show number of total deaths multiplied by population density.',
+
+          num:  'deaths',
+          den:  'density',
         }, {
           name: 'Deaths Per Capita',
           text: 'Show number of deaths per capita.',

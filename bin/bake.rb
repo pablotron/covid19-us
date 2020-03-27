@@ -190,6 +190,9 @@ def get_value(type, id)
     STATES[INDEX[id]][:population]
   when :area_land
     STATES[INDEX[id]][:area_land_sq_mi]
+  when :density
+    # NOTE: *INVERSE* population density
+    1.0 * STATES[INDEX[id]][:area_land_sq_mi] / STATES[INDEX[id]][:population]
   when :one
     1
   else
@@ -200,7 +203,7 @@ end
 # iterate through numerators and denominators to build hash of
 # pre-sorted values
 SORTS = %i{cases deaths population}.each.with_object({}) do |num, r|
-  %i{one population area_land}.each.with_object(r) do |den, r|
+  %i{one population area_land density}.each.with_object(r) do |den, r|
     r['%s_%s' % [num, den]] = INDEX.keys.map { |id|
       { id: id, val: 1.0 * get_value(num, id) / get_value(den, id) }
     }.sort { |a, b|
