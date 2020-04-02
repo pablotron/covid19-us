@@ -1136,7 +1136,7 @@ window.addEventListener('DOMContentLoaded', function() {
        return 'COVID-19 US - ' + title + ' (' + get_today() + ').csv';
       }
 
-      function make_link(ids) {
+      function make_download_link(ids) {
         var view = TableModel.get_view(),
             col_key = TableModel.get_col_key(view.num);
 
@@ -1165,25 +1165,53 @@ window.addEventListener('DOMContentLoaded', function() {
           })).join(',');
         })).join('\n') + '\n';
 
-        return '<p>' +
-          '<a ' +
-            'class="csv" ' +
-            'download="' + get_csv_name(view) + '"' +
-            'title="Download results as a CSV file." ' +
-            'href="data:text/csv;charset=utf-8,' + encodeURI(csv_data) + '" ' +
-          '>' +
-            'Download Results' +
-          '</a>' +
-        '</p>';
+        return '<a ' +
+          'class="csv" ' +
+          'download="' + get_csv_name(view) + '"' +
+          'title="Download results as a CSV file." ' +
+          'href="data:text/csv;charset=utf-8,' + encodeURI(csv_data) + '" ' +
+        '>' +
+          'Download Results' +
+        '</a>';
+      }
+
+      function make_show_all_link() {
+        return '<a ' +
+          'class="show-all" ' +
+          'title="Show all dates." ' +
+          'href="#" ' +
+        '>' +
+          'Show All' +
+        '</a>';
+      }
+
+      function make_links(ids) {
+        return '<p class="table-links">' + [
+          make_download_link(ids),
+          make_show_all_link(),
+        ].join(' ') + '</p>';
       }
 
       function get_dates(ids) {
-        return DATA.data[ids.reduce(function(r, id) {
+        var r = DATA.data[ids.reduce(function(r, id) {
           var v = DATA.data[id].length;
           return (!r || (v > DATA.data[r].length)) ? id : r;
         })].map(function(row) {
-          return row.date;
+          return {
+            date: row.date,
+            show: true,
+          };
         });
+
+        if (r.length > 15) {
+          // hide older dates by default
+          var min = (r.length - 15);
+          r.forEach(function(row, i) {
+            row.show = (i >= min);
+          });
+        }
+
+        return r;
       }
 
       function get_thead(view, dates) {
@@ -1210,11 +1238,11 @@ window.addEventListener('DOMContentLoaded', function() {
           css:  'num state-pop',
           span: 1,
         }].concat(dates.map(function(date) {
-          var s = format_date(date);
+          var s = format_date(date.date);
           return {
             name: s,
             text: label + ', ' + s,
-            css:  'num',
+            css:  ['num'].concat(date.show ? [] : ['hidden']).join(' '),
             span: 1,
           };
         }))].map(function(ths) {
@@ -1251,7 +1279,7 @@ window.addEventListener('DOMContentLoaded', function() {
               name: format_population(state.population),
               text: id + ' population: ' + state.population,
               css:  'num state-pop',
-            }].concat(DATA.data[id].map(function(row) {
+            }].concat(DATA.data[id].map(function(row, i) {
               var raw = row[col_key] / den,
                   val = format_number(view, raw),
                   tip = label + ' in ' + id + ' as of ' + row.date + ': ' + raw;
@@ -1259,7 +1287,7 @@ window.addEventListener('DOMContentLoaded', function() {
               return {
                 name: val,
                 text: tip,
-                css:  'num',
+                css: ['num'].concat(dates[i].show ? [] : ['hidden']).join(' '),
               };
             })).map(function(col) {
               var el = (col.el || 'td');
@@ -1293,7 +1321,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
       function draw(ids) {
         return make_table(ids) +
-               make_link(ids);
+               make_links(ids);
       }
 
       function refresh() {
@@ -1323,6 +1351,27 @@ window.addEventListener('DOMContentLoaded', function() {
         },
       };
     })(),
+
+    table_show: {
+      init: function(wrap_el) {
+        wrap_el.addEventListener('click', function(ev) {
+          if ((ev.target.className || '').match(/show-all/)) {
+            // show hidden cells
+            var els = wrap_el.getElementsByClassName('hidden');
+            for (var i = 0; i < els.length; i++) {
+              els[i].classList.remove('hidden');
+            }
+
+            // hide button
+            ev.target.classList.add('hidden');
+
+            ev.stopPropagation();
+            ev.preventDefault();
+            return false;
+          }
+        }, true);
+      },
+    },
   };
 
   // init states, bind to change event
@@ -1345,4 +1394,5 @@ window.addEventListener('DOMContentLoaded', function() {
   Views.table.init(E.data);
   Views.yaxis.init(E.y_axis, E.y_scale);
   Views.table_units.init(E.table_units);
+  Views.table_show.init(E.data);
 });
