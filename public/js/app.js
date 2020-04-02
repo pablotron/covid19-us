@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', function() {
       })();
 
   // cache elements
-  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'data', 'confirmed', 'deaths', 'count', 'table-units'].reduce(function(r, id) {
+  var E = ['map', 'none', 'map-bg', 'states', 'y-axis', 'y-scale', 'data', 'confirmed', 'deaths', 'count', 'table-units'].reduce(function(r, id) {
     r[id.replace(/-/g, '_')] = document.getElementById(id);
     return r;
   }, {});
@@ -206,8 +206,11 @@ window.addEventListener('DOMContentLoaded', function() {
     var ehs = {};
 
     // view state
-    var view = { num: 'cases', den: 'one' };
-
+    var view = {
+      num: 'cases',
+      den: 'one',
+      scale: 'linear',
+    };
 
     function fire(ev, args) {
       (ehs[ev] || []).forEach(function(fn) {
@@ -580,7 +583,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
       function refresh() {
         var ids = States.get_active(),
-              view = ChartModel.get_view();
+            view = ChartModel.get_view();
 
         var col_key = ChartModel.get_col_key(view.num);
 
@@ -588,11 +591,19 @@ window.addEventListener('DOMContentLoaded', function() {
           var chart = CHARTS[col.id],
               config_data = chart.config.data;
 
-          // show chart
-          chart.wrap.classList.remove('hidden');
+          if (ids.length > 0) {
+            // show chart
+            chart.wrap.classList.remove('hidden');
+          } else {
+            // hide chart
+            chart.wrap.classList.add('hidden');
+          }
 
           // update axis label and title
           set_text(chart.config.options, view);
+
+          // update axis scale
+          chart.config.options.scales.yAxes[0].type = view.scale;
 
           // rebuild labels
           config_data.labels = ids.filter(function(id) {
@@ -654,6 +665,8 @@ window.addEventListener('DOMContentLoaded', function() {
                   }],
 
                   yAxes: [{
+                    type: 'linear',
+
                     ticks: {
                       beginAtZero: true,
                     },
@@ -992,9 +1005,9 @@ window.addEventListener('DOMContentLoaded', function() {
       }];
 
       return {
-        init: function(el) {
+        init: function(view_el, scale_el) {
           // populate html
-          el.innerHTML = ITEMS.map(function(group) {
+          view_el.innerHTML = ITEMS.map(function(group) {
             return '<optgroup label="' + group.name + '">' +
               group.kids.map(function(row) {
                 return '<option ' +
@@ -1010,18 +1023,24 @@ window.addEventListener('DOMContentLoaded', function() {
             '</optgroup>';
           }).join('');
 
-          // bind to change event
-          on(el, {
+          var handlers = {
             change: function() {
               setTimeout(function() {
-                var data = el.options[el.selectedIndex].dataset;
+                var data = view_el.options[view_el.selectedIndex].dataset,
+                    scale = scale_el.value;
 
                 ChartModel.set_view({
-                  num: data.num,
-                  den: data.den,
+                  num:    data.num,
+                  den:    data.den,
+                  scale:  scale,
                 });
               }, 10);
             },
+          };
+
+          // bind to change events
+          [view_el, scale_el].forEach(function(el) {
+            on(el, handlers);
           });
         },
       };
@@ -1324,6 +1343,6 @@ window.addEventListener('DOMContentLoaded', function() {
   Views.picker.init(E.states, E.none, E.count);
   Views.charts.init(E.map);
   Views.table.init(E.data);
-  Views.yaxis.init(E.y_axis);
+  Views.yaxis.init(E.y_axis, E.y_scale);
   Views.table_units.init(E.table_units);
 });
