@@ -18,7 +18,7 @@
 set -eu
 
 # covidtracking source url
-CT_DAILY_URL="https://covidtracking.com/api/states/daily.json"
+CT_DAILY_URL="https://covidtracking.com/api/v1/us/states/daily.json"
 
 # absolute path to directory for json output from covidtracking api
 CT_DATA_DIR="$COVID19_US_DIR/data/covidtracking.com"
