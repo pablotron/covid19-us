@@ -39,6 +39,11 @@
       #map {
         height: 30rem;
       }
+
+      #map-find-dialog .list-group-wrap {
+        overflow: auto;
+        max-height: 50vh;
+      }
     </style>
   </head>
 
@@ -612,7 +617,7 @@
               id='map-find-dialog-title'
               class='modal-title'
             >
-              Find <span>Regions</span>
+              Find <span>...</span>
             </h5><!-- modal-title -->
             <button
               type='button'
@@ -631,7 +636,9 @@
                 <span
                   id='map-find-q-prepend'
                   class='input-group-text'
-                >@</span>
+                >
+                  <i class='fa fa-fw fa-search'></i>
+                </span>
               </div><!-- input-group-prepend -->
 
               <input
@@ -643,6 +650,14 @@
                 aria-describedby='map-find-q-prepend'
               />
             </div><!-- input-group -->
+
+            <div class='list-group-wrap' data-id='states'>
+              <div class='list-group'></div>
+            </div><!-- list-group-wrap -->
+
+            <div class='list-group-wrap' data-id='counties'>
+              <div class='list-group'></div>
+            </div><!-- list-group-wrap -->
           </div><!-- modal-body -->
 
           <div class='modal-footer'>
@@ -661,6 +676,7 @@
 
 
 
+    <script type='text/javascript' src='js/luigi-template-0.5.0.min.js'></script>
     <script type='text/javascript' src='js/jquery-3.5.1.min.js'></script>
     <script type='text/javascript' src='https://unpkg.com/leaflet@1.6.0/dist/leaflet.js'></script>
     <script type='text/javascript' src='js/bootstrap-4.5.0/js/bootstrap.bundle.min.js'></script>

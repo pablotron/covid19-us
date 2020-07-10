@@ -1,12 +1,51 @@
 jQuery(function($) {
   "use strict";
 
+  function normalize(s) {
+    return (s
+      .toLowerCase() // convert to lower case
+      .replace(/^\s+|\s+$/g, '') // strip leading/trailing whitespace
+      .replace(/[^a-z0-9]+/g, ' ') // remove non-alphanumeric characters
+    );
+  }
+
+  var TEMPLATES = Luigi.cache({
+    find_list_css: [
+      '#map-find-dialog .list-group-wrap[data-id="%{id}"] .list-group'
+    ],
+
+    find_row: [
+      "<a ",
+        "href='#' ",
+        "class='list-group-item list-group-item-action' ",
+        "title='%{name|h}' ",
+        "data-id='%{id|h}' ",
+        "data-name='%{name|h}' ",
+        "data-q='%{q|h}' ",
+      ">",
+        "%{name|h}",
+      "</a>",
+    ],
+
+    info_card_body: [
+      "<div class='card-body'>",
+        "<h6 class='card-title'>",
+          "%{name|h}",
+        "</h6>",
+
+        "<p class='card-text'>",
+          "TODO: stats",
+        "</p>",
+      "</div>",
+    ],
+  });
+
   var CONTROL_BAR_HTML = [
     "<div class='btn-toolbar ml-2 mt-1'>",
-      "<div class='btn-group btn-group-sm mr-2'>",
+      "<div class='btn-group btn-group-sm mr-1'>",
         "<button ",
           "data-id='map-home' ",
-          "class='btn btn-light' ",
+          "class='btn btn-light border-dark shadow-sm' ",
           "title='Center map and reset zoom' ",
         ">",
           "<i class='fa fa-fw fa-home'></i>",
@@ -17,8 +56,9 @@ jQuery(function($) {
 
       "<div class='btn-group btn-group-sm mr-2'>",
         "<button ",
-          "class='btn btn-light'  ",
+          "class='btn btn-light border-dark shadow-sm'  ",
           "title='Find region by name.' ",
+          "data-id='map-find' ",
           "data-toggle='modal' ",
           "data-target='#map-find-dialog' ",
         ">",
@@ -44,14 +84,37 @@ jQuery(function($) {
     onAdd: function(map) {
       return $(CONTROL_BAR_HTML)[0];
     },
-
-    onRemove: function(map) {
-        // Nothing to do here
-    },
   });
 
   L.control.controlbar = function(opts) {
     return new L.Control.ControlBar(opts);
+  };
+
+  var INFO_CARD_HTML = [
+    "<div class='card shadow p-0'>",
+    "</div>",
+  ].join('');
+
+  L.Control.InfoCard = L.Control.extend({
+    onAdd: function(map) {
+      this._div = $(INFO_CARD_HTML)[0];
+      this.update();
+      return this._div;
+    },
+
+    update: function(feature) {
+      var me = $(this._div);
+      me.toggleClass('hidden', !feature);
+      if (feature) {
+        me.html(TEMPLATES.run('info_card_body', {
+          name: feature.properties.NAME || feature.properties.name,
+        }));
+      }
+    },
+  });
+
+  L.control.infocard = function(opts) {
+    return new L.Control.InfoCard(opts);
   };
 
   // initialize Leaflet
@@ -69,11 +132,35 @@ jQuery(function($) {
     id:   'states',
     url:  'data/us-states.json',
     show: true,
+
+    normalize: function(feature) {
+      var name = feature.properties.name;
+      return {
+        id: feature.id,
+        name: name,
+        q: normalize(name),
+      };
+    },
   }, {
     id:   'counties',
     url:  'data/us-counties-5m.json',
+
+    normalize: function(feature) {
+      var name = feature.properties.NAME;
+      return {
+        id:   feature.properties.GEOM_ID,
+        name: name,
+        q:    normalize(name),
+      };
+    },
   }].forEach(function(row) {
     fetch(row.url).then(r => r.json()).then(function(data) {
+      // populate find list
+      $(TEMPLATES.run('find_list_css', row)).html(data.features.map(
+        f => TEMPLATES.run('find_row', row.normalize(f))
+      ).join(''));
+
+      // build map layer
       var layer = L.geoJson(data, {
         style: function(feature) {
           return {
@@ -90,6 +177,7 @@ jQuery(function($) {
         onEachFeature: function(feature, l) {
           l.on({
             mouseover: function(ev) {
+              info.update(ev.target.feature);
               ev.target.setStyle({
                 weight: 5,
                 strokeColor: '#666',
@@ -99,7 +187,8 @@ jQuery(function($) {
             },
 
             mouseout: function(ev) {
-              console.log(ev);
+              info.update();
+              // console.log(ev);
               layer.resetStyle(ev.target);
             },
           });
@@ -119,6 +208,10 @@ jQuery(function($) {
       $(css).trigger('layer-loaded');
     });
   });
+
+  var info = L.control.infocard({
+    position: 'topright'
+  }).addTo(map);
 
   L.control.controlbar({
     position: 'bottomleft'
@@ -141,8 +234,6 @@ jQuery(function($) {
     var id = $(this).val(),
         layer = geojson.layers[id];
 
-    console.log('id = ' + id);
-
     // remove existing layers
     for (var key in geojson.layers) {
       var tmp = geojson.layers[key];
@@ -160,20 +251,77 @@ jQuery(function($) {
         ul = me.parents('.dropdown-menu'),
         btn = ul.prev('.dropdown-toggle');
 
+    console.log(me.data());
+
+    // set highlight
     ul.find('.active').removeClass('active');
     me.addClass('active');
-    console.log(me.data());
+
+    // set name
     btn.find('span').text(me.data('name'));
+
+    // hide dropdown
     $('body').click();
 
+    // stop event
     return false;
   });
 
   $('#map-find-dialog').on('show.bs.modal', function() {
-    var title = $('input[name="map-layer"]:checked').data('name');
+    var view = $('input[name="map-layer"]:checked');
+
+    // reset list
+    $(this).find('.list-group-wrap').addClass('hidden');
+    $(this).find('.list-group-wrap[data-id="' + view.val() + '"]')
+      .removeClass('hidden');
+
+    // set title
+    var title = view.data('name');
     $('#map-find-dialog-title span').text(title);
+
+    // clear search field
     $('#map-find-q').val('');
+    $(this).find('.list-group-item-action').removeClass('hidden');
   }).on('shown.bs.modal', function() {
+    // focus search field
     $('#map-find-q').focus();
+  }).on('hide.bs.modal', function() {
+    // blur button
+    $('#map button[data-id="map-find"]').blur();
+  }).find('.list-group').on('click', '.list-group-item-action', function() {
+    $(this).toggleClass('active');
+    return false;
   });
+
+  (function() {
+    var timeout = null;
+
+    $('#map-find-q').keydown(function(ev) {
+      var me = $(this);
+
+      if (ev.which != 13) {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(function() {
+          // normalize query, split into parts
+          var qs = normalize(me.val()).split(/[^a-z0-9]/);
+
+          if (qs.length > 0) {
+            $.each($('#map-find-dialog .list-group-item-action'), function(i, el) {
+              var el_q = $(el).data('q') || '';
+              $(el).toggleClass('hidden', ($.grep(qs, function(q) {
+                return el_q.indexOf(q) != -1;
+              }).length != qs.length));
+            });
+          } else {
+            // no search string, show all values
+            $('#map-find-dialog .list-group-item-action').removeClass('hidden');
+          }
+          timeout = null;
+        }, 100);
+      }
+    });
+  })();
 });
