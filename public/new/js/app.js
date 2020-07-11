@@ -140,55 +140,48 @@ jQuery(function($) {
     ],
   });
 
-  var Active = (function() {
-    var list = [];
+  var Active = function() {
+    this._list = [];
+  };
 
-    function add(id) {
-      list = list.filter(cmp_id => (cmp_id !== id)).concat([id]);
-      return this;
+  Active.prototype.add = function(id) {
+    this._list = this._list.filter(cmp_id => (cmp_id !== id)).concat([id]);
+    return this;
+  };
+
+  Active.prototype.rm = function(id) {
+    this._list = this._list.filter(cmp_id => (cmp_id !== id));
+  };
+
+  Active.prototype.has = function(id) {
+    return this._list.indexOf(id) !== -1;
+  };
+
+  Active.prototype.toggle = function(id) {
+    var is_active = this.has(id);
+
+    if (is_active) {
+      this.rm(id);
+    } else {
+      this.add(id);
     }
 
-    function rm(id) {
-      list = list.filter(cmp_id => (cmp_id !== id));
-    }
+    return !is_active;
+  };
 
-    function has(id) {
-      return list.indexOf(id) !== -1;
-    }
+  Active.prototype.set = function(ids) {
+      this._list = [].concat(ids);
+  };
 
-    function toggle(id) {
-      var is_active = has(id);
-
-      if (is_active) {
-        rm(id);
-      } else {
-        add(id);
-      }
-
-      return !is_active;
-    }
-
-    function set(ids) {
-      list = [].concat(ids);
-    }
-
-    return {
-      add: add,
-      rm: rm,
-      has: has,
-      toggle: toggle,
-      set: set,
-      log: function() {
-        console.log(list);
-      },
-    };
-  })();
+  Active.prototype.log = function() {
+    console.log(this._list);
+  };
 
   var GeoJsonLoader = function(config) {
     this._config = config;
   };
 
-  GeoJsonLoader.prototype.load = function(info, on_loaded) {
+  GeoJsonLoader.prototype.load = function(info, active, on_loaded) {
     this._config.forEach(function(row) {
       fetch(row.url).then(r => r.json()).then(function(data) {
         // populate find list
@@ -230,7 +223,7 @@ jQuery(function($) {
                 info.update();
                 // console.log(ev);
                 layer.resetStyle(ev.target);
-                if (Active.has(ev.target.feature.id)) {
+                if (active.has(ev.target.feature.id)) {
                   ev.target.setStyle({
                     stroke: true,
                     color: '#666',
@@ -241,7 +234,7 @@ jQuery(function($) {
 
               click: function(ev) {
                 var id = ev.target.feature.id,
-                    is_active = Active.toggle(id);
+                    is_active = active.toggle(id);
 
                 ev.target.setStyle({
                   stroke: true,
@@ -249,7 +242,7 @@ jQuery(function($) {
                   fillColor: '#3388ff',
                 });
 
-                Active.log();
+                active.log();
               },
 
               contextmenu: function(ev) {
@@ -699,7 +692,11 @@ jQuery(function($) {
     },
   };
 
-  // init geojson loader
+  var geojson = { data: {}, layers: {} };
+  var METADATA = null;
+
+  // init active list and geojson loader
+  var active = new Active();
   var loader = new GeoJsonLoader(CONFIG.geojson);
 
   // init map controls
@@ -710,8 +707,7 @@ jQuery(function($) {
   var info = L.control.infopane(CONFIG.map.controls.info).addTo(map);
 
   // load geojson layers
-  var geojson = { data: {}, layers: {} };
-  loader.load(info, function(id, data, layer) {
+  loader.load(info, active, function(id, data, layer) {
     // cache data and layer
     geojson.data[id] = data;
     geojson.layers[id] = layer;
@@ -727,7 +723,6 @@ jQuery(function($) {
   });
 
   // load metadata
-  var METADATA = null;
   fetch('data/data.json').then(r => r.json()).then(function(data) {
     METADATA = data;
   });
