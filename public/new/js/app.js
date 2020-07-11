@@ -294,6 +294,202 @@ jQuery(function($) {
         UI.controls.InfoPane.init();
       },
     },
+
+    dialogs: {
+      LocFind: {
+        init: function(css) {
+          var dialog = $(css);
+
+          dialog.on('show.bs.modal', function() {
+            var me = $(this),
+                view = $('input[name="map-layer"]:checked');
+
+            // reset list
+            me.find('.list-group-wrap').addClass('hidden');
+            me.find('.list-group-wrap[data-id="' + view.val() + '"]')
+              .removeClass('hidden');
+
+            // set title
+            var title = view.data('name');
+            me.find('.modal-title span').text(title);
+
+            // clear search field
+            me.find('input.q').val('');
+            me.find('.list-group-item-action').removeClass('hidden');
+          }).on('shown.bs.modal', function() {
+            // focus search field
+            $(this).find('input.q').focus();
+          }).on('hide.bs.modal', function() {
+            // blur button
+            // $('#map button[data-id="loc-find"]').blur();
+          }).find('.list-group').on('click', '.list-group-item-action', function() {
+            $(this).toggleClass('active');
+            return false;
+          });
+
+          (function() {
+            var timeout = null;
+
+            dialog.find('input.q').keydown(function(ev) {
+              var me = $(this);
+
+              if (ev.which != 13) {
+                if (timeout) {
+                  clearTimeout(timeout);
+                }
+
+                timeout = setTimeout(function() {
+                  // normalize query, split into parts
+                  var qs = normalize(me.val()).split(/[^a-z0-9]/),
+                      els = dialog.find('.list-group-item-action');
+
+                  if (qs.length > 0) {
+                    $.each(els, function(i, el) {
+                      var el_q = $(el).data('q') || '';
+
+                      $(el).toggleClass('hidden', ($.grep(qs, function(q) {
+                        return el_q.indexOf(q) != -1;
+                      }).length != qs.length));
+                    });
+                  } else {
+                    // no search string, show all values
+                    els.removeClass('hidden');
+                  }
+                  timeout = null;
+                }, 100);
+              }
+            });
+          })();
+        },
+      },
+
+      LocInfo: (function() {
+        var PROPS = [{
+          src: 'id',
+          dst: 'FIPS Code',
+          tip: 'Federal Information Processing Standard identifier',
+        }, {
+          src: 'population',
+          dst: 'Population (2019)',
+          tip: 'Estimated 2019 population',
+          format: v => number_format(v),
+        }, {
+          src: 'density',
+          dst: 'Population Density (2019)',
+          tip: 'Estimated 2019 people per square mile.',
+          format: v => number_format(v),
+          unit: 'people/mi<sup>2</sup>',
+        }, {
+          src: 'deaths',
+          dst: 'Annual Births (2019)',
+          tip: 'Cumulative 2019 births',
+        }, {
+          src: 'deaths',
+          dst: 'Annual Deaths (2019)',
+          tip: 'Cumulative 2019 deaths',
+        }, {
+          src: 'land_area',
+          dst: 'Land Area',
+          tip: 'Total area in square miles, excluding bodies of water',
+          unit: 'mi<sup>2</sup>',
+        }];
+
+        var CURRENT = {
+          state: [{
+            src: 'positiveIncrease',
+            dst: 'New Cases',
+            tip: 'New COVID-19 cases in the last 24 hours'
+          }, {
+            src: 'deathIncrease',
+            dst: 'New Deaths',
+            tip: 'Number of COVID-19 deaths in the last 24 hours'
+          }, {
+            src: 'hospitalizedCurrently',
+            dst: 'Hospitalized, Currently',
+            tip: 'Current Number of COVID-19 patients hospitalized'
+          }, {
+            src: 'hospitalizedCumulative',
+            dst: 'Hospitalized, Cumulative',
+            tip: 'Current Number of COVID-19 patients hospitalized'
+          }, {
+            src: 'inIcuCurrently',
+            dst: 'ICU, Currently',
+            tip: 'Current number of COVID-19 patients in Intensive Care Unit (ICU)'
+          }, {
+            src: 'inIcuCumulative',
+            dst: 'ICU, Cumulative',
+            tip: 'Cumulative number of COVID-19 patients in Intensive Care Unit (ICU)'
+          }, {
+            src: 'onVentilatorCurrently',
+            dst: 'On Ventilator, Currently',
+            tip: 'Current number of COVID-19 patients on ventilators'
+          }, {
+            src: 'onVentilatorCumulative',
+            dst: 'On Ventilator, Cumulative',
+            tip: 'Cumulative number of COVID-19 patients on ventilators'
+          }],
+
+          county: [{
+            src: 'cases',
+            dst: 'Cumulative Cases',
+            tip: 'Cumulative COVID-19 cases'
+          }, {
+            src: 'deaths',
+            dst: 'Cumulative Deaths',
+            tip: 'Cumulative COVID-19 deaths'
+          }],
+        };
+
+        function get_notes(set, id) {
+          var md = METADATA ? METADATA[set][id].metadata : null;
+          return (md && md.notes) ? md.notes : '';
+        }
+
+        function make_body(ps) {
+          var set = (ps.type == 'state') ? 'states' : 'counties',
+              md = METADATA ? METADATA[set][ps.id].current : null;
+
+          return TEMPLATES.run('loc_info_body', {
+            body: PROPS.map(
+              p => ({
+                key: p.dst,
+                val: p.format ? p.format(ps[p.src]) : ps[p.src],
+                tip: p.tip,
+                unit: p.unit || '',
+              })
+            ).concat(md ? CURRENT[ps.type].map(
+              p => (md[p.src] ? {
+                key: p.dst,
+                val: p.format ? p.format(md[p.src]) : md[p.src],
+                tip: p.tip,
+                unit: p.unit || '',
+              } : null)
+            ) : []).map(
+              row => row ? TEMPLATES.run('loc_info_row', row) : ''
+            ).join(''),
+
+            notes: get_notes(set, ps.id),
+          });
+        }
+
+        return {
+          init: function(css) {
+            $(css).on('show.bs.modal', function() {
+              var me = $(this),
+                  ps = me.data('properties');
+
+              me.find('.modal-title span').text(ps.name);
+              me.find('.modal-body').html(make_body(ps));
+            });
+          },
+        };
+      })(),
+
+      init: function() {
+        UI.dialogs.LocFind.init('#loc-find-dialog');
+        UI.dialogs.LocInfo.init('#loc-info-dialog');
+      },
+    },
   };
 
   // init map controls
@@ -483,202 +679,6 @@ jQuery(function($) {
     // stop event
     return false;
   });
-
-  UI.dialogs = {
-    LocFind: {
-      init: function(css) {
-        var dialog = $(css);
-
-        dialog.on('show.bs.modal', function() {
-          var me = $(this),
-              view = $('input[name="map-layer"]:checked');
-
-          // reset list
-          me.find('.list-group-wrap').addClass('hidden');
-          me.find('.list-group-wrap[data-id="' + view.val() + '"]')
-            .removeClass('hidden');
-
-          // set title
-          var title = view.data('name');
-          me.find('.modal-title span').text(title);
-
-          // clear search field
-          me.find('input.q').val('');
-          me.find('.list-group-item-action').removeClass('hidden');
-        }).on('shown.bs.modal', function() {
-          // focus search field
-          $(this).find('input.q').focus();
-        }).on('hide.bs.modal', function() {
-          // blur button
-          // $('#map button[data-id="loc-find"]').blur();
-        }).find('.list-group').on('click', '.list-group-item-action', function() {
-          $(this).toggleClass('active');
-          return false;
-        });
-
-        (function() {
-          var timeout = null;
-
-          dialog.find('input.q').keydown(function(ev) {
-            var me = $(this);
-
-            if (ev.which != 13) {
-              if (timeout) {
-                clearTimeout(timeout);
-              }
-
-              timeout = setTimeout(function() {
-                // normalize query, split into parts
-                var qs = normalize(me.val()).split(/[^a-z0-9]/),
-                    els = dialog.find('.list-group-item-action');
-
-                if (qs.length > 0) {
-                  $.each(els, function(i, el) {
-                    var el_q = $(el).data('q') || '';
-
-                    $(el).toggleClass('hidden', ($.grep(qs, function(q) {
-                      return el_q.indexOf(q) != -1;
-                    }).length != qs.length));
-                  });
-                } else {
-                  // no search string, show all values
-                  els.removeClass('hidden');
-                }
-                timeout = null;
-              }, 100);
-            }
-          });
-        })();
-      },
-    },
-
-    LocInfo: (function() {
-      var PROPS = [{
-        src: 'id',
-        dst: 'FIPS Code',
-        tip: 'Federal Information Processing Standard identifier',
-      }, {
-        src: 'population',
-        dst: 'Population (2019)',
-        tip: 'Estimated 2019 population',
-        format: v => number_format(v),
-      }, {
-        src: 'density',
-        dst: 'Population Density (2019)',
-        tip: 'Estimated 2019 people per square mile.',
-        format: v => number_format(v),
-        unit: 'people/mi<sup>2</sup>',
-      }, {
-        src: 'deaths',
-        dst: 'Annual Births (2019)',
-        tip: 'Cumulative 2019 births',
-      }, {
-        src: 'deaths',
-        dst: 'Annual Deaths (2019)',
-        tip: 'Cumulative 2019 deaths',
-      }, {
-        src: 'land_area',
-        dst: 'Land Area',
-        tip: 'Total area in square miles, excluding bodies of water',
-        unit: 'mi<sup>2</sup>',
-      }];
-
-      var CURRENT = {
-        state: [{
-          src: 'positiveIncrease',
-          dst: 'New Cases',
-          tip: 'New COVID-19 cases in the last 24 hours'
-        }, {
-          src: 'deathIncrease',
-          dst: 'New Deaths',
-          tip: 'Number of COVID-19 deaths in the last 24 hours'
-        }, {
-          src: 'hospitalizedCurrently',
-          dst: 'Hospitalized, Currently',
-          tip: 'Current Number of COVID-19 patients hospitalized'
-        }, {
-          src: 'hospitalizedCumulative',
-          dst: 'Hospitalized, Cumulative',
-          tip: 'Current Number of COVID-19 patients hospitalized'
-        }, {
-          src: 'inIcuCurrently',
-          dst: 'ICU, Currently',
-          tip: 'Current number of COVID-19 patients in Intensive Care Unit (ICU)'
-        }, {
-          src: 'inIcuCumulative',
-          dst: 'ICU, Cumulative',
-          tip: 'Cumulative number of COVID-19 patients in Intensive Care Unit (ICU)'
-        }, {
-          src: 'onVentilatorCurrently',
-          dst: 'On Ventilator, Currently',
-          tip: 'Current number of COVID-19 patients on ventilators'
-        }, {
-          src: 'onVentilatorCumulative',
-          dst: 'On Ventilator, Cumulative',
-          tip: 'Cumulative number of COVID-19 patients on ventilators'
-        }],
-
-        county: [{
-          src: 'cases',
-          dst: 'Cumulative Cases',
-          tip: 'Cumulative COVID-19 cases'
-        }, {
-          src: 'deaths',
-          dst: 'Cumulative Deaths',
-          tip: 'Cumulative COVID-19 deaths'
-        }],
-      };
-
-      function get_notes(set, id) {
-        var md = METADATA ? METADATA[set][id].metadata : null;
-        return (md && md.notes) ? md.notes : '';
-      }
-
-      function make_body(ps) {
-        var set = (ps.type == 'state') ? 'states' : 'counties',
-            md = METADATA ? METADATA[set][ps.id].current : null;
-
-        return TEMPLATES.run('loc_info_body', {
-          body: PROPS.map(
-            p => ({
-              key: p.dst,
-              val: p.format ? p.format(ps[p.src]) : ps[p.src],
-              tip: p.tip,
-              unit: p.unit || '',
-            })
-          ).concat(md ? CURRENT[ps.type].map(
-            p => (md[p.src] ? {
-              key: p.dst,
-              val: p.format ? p.format(md[p.src]) : md[p.src],
-              tip: p.tip,
-              unit: p.unit || '',
-            } : null)
-          ) : []).map(
-            row => row ? TEMPLATES.run('loc_info_row', row) : ''
-          ).join(''),
-
-          notes: get_notes(set, ps.id),
-        });
-      }
-
-      return {
-        init: function(css) {
-          $(css).on('show.bs.modal', function() {
-            var me = $(this),
-                ps = me.data('properties');
-
-            me.find('.modal-title span').text(ps.name);
-            me.find('.modal-body').html(make_body(ps));
-          });
-        },
-      };
-    })(),
-
-    init: function() {
-      UI.dialogs.LocFind.init('#loc-find-dialog');
-      UI.dialogs.LocInfo.init('#loc-info-dialog');
-    },
-  };
 
   UI.dialogs.init();
 });
