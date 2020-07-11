@@ -41,7 +41,7 @@
         height: 30rem;
       }
 
-      #map-find-dialog .list-group-wrap {
+      #loc-find-dialog .list-group-wrap {
         overflow: auto;
         max-height: 50vh;
       }
@@ -112,11 +112,11 @@
                   role='group'
                 >
                   <button
-                    id='map-find-btn'
+                    id='loc-find-btn'
                     class='btn btn-outline-secondary'
                     title='Find region by name.'
                     data-toggle='modal'
-                    data-target='#map-find-dialog'
+                    data-target='#loc-find-dialog'
                   >
                     Find&hellip;
                   </button><!-- btn -->
@@ -600,18 +600,18 @@
     </div><!-- container -->
 
     <div
-      id='map-find-dialog'
+      id='loc-find-dialog'
       class='modal fade'
       tabindex='-1'
       role='dialog'
-      aria-labelledby='map-find-dialog-title'
+      aria-labelledby='loc-find-dialog-title'
       aria-hidden='true'
     >
       <div class='modal-dialog modal-lg'>
         <div class='modal-content'>
           <div class='modal-header'>
             <h5
-              id='map-find-dialog-title'
+              id='loc-find-dialog-title'
               class='modal-title'
             >
               Find <span>...</span>
@@ -631,7 +631,7 @@
             <div class="input-group mb-3">
               <div class='input-group-prepend'>
                 <span
-                  id='map-find-q-prepend'
+                  id='loc-find-q-prepend'
                   class='input-group-text'
                 >
                   <i class='fa fa-fw fa-search'></i>
@@ -640,11 +640,11 @@
 
               <input
                 type='text'
-                id='map-find-q'
-                class='form-control'
+                id='loc-find-q'
+                class='form-control q'
                 title='Enter search terms'
                 aria-label='Username'
-                aria-describedby='map-find-q-prepend'
+                aria-describedby='loc-find-q-prepend'
               />
             </div><!-- input-group -->
 
@@ -676,7 +676,7 @@
       class='modal fade'
       tabindex='-1'
       role='dialog'
-      aria-labelledby='map-find-dialog-title'
+      aria-labelledby='loc-find-dialog-title'
       aria-hidden='true'
     >
       <div class='modal-dialog modal-lg'>
