@@ -33,10 +33,53 @@ jQuery(function($) {
           "%{name|h}",
         "</h6>",
 
-        "<p class='card-text'>",
-          "TODO: stats",
-        "</p>",
+        "%{body}",
       "</div>",
+    ],
+
+    info_card_row: [
+      "<dt>%{key|h}</dt>",
+      "<dd>%{val|h} %{unit}</dd>",
+    ],
+
+    loc_info_body: [
+      "<div class='row'>",
+        "<div class='col'>",
+          "<table class='table table-hover table-sm'>",
+            "<thead>",
+              "<tr>",
+                "<th>Name</th>",
+                "<th>Value</th>",
+              "</tr>",
+            "</thead>",
+
+            "<tbody>",
+              "%{body}",
+            "</tbody>",
+          "</table>",
+        "</div>",
+      "</div>",
+
+      "<div class='row'>",
+        "<div class='col'>",
+          "<dl>",
+            "<dt>Notes</dt>",
+            "<dd>%{notes|h}</dd>",
+          "</dl>",
+        "</div>",
+      "</div>",
+    ],
+
+    loc_info_row: [
+      "<tr>",
+        "<td title='%{tip|h}' class='bold'>",
+          "%{key|h}",
+        "</td>",
+
+        "<td title='%{tip|h}'>",
+          "%{val|h} %{unit}",
+        "</dd>",
+      "</tr>",
     ],
   });
 
@@ -95,6 +138,48 @@ jQuery(function($) {
     "</div>",
   ].join('');
 
+  function number_format(v) {
+    if (+v > 1000000) {
+      return (+v / 1000000.0).toFixed(1) + 'M';
+    } else if (v > 1000) {
+      return (+v / 1000.0).toFixed(1) + 'k';
+    } else {
+      return v.toFixed(1);
+    }
+  }
+
+  var INFO_CARD_PROPS = [{
+    src: 'population',
+    dst: 'Population',
+    format: v => number_format(v),
+  }, {
+    src: 'density',
+    dst: 'Population Density',
+    format: v => number_format(v),
+    unit: 'people/mi<sup>2</sup>',
+  }];
+
+  var INFO_CARD_CURRENT = {
+    state: [{
+      src: 'positiveIncrease',
+      dst: 'New Cases',
+    }, {
+      src: 'hospitalizedCurrently',
+      dst: 'Currently Hospitalized',
+    }, {
+      src: 'deathIncrease',
+      dst: 'New Deaths',
+    }],
+
+    county: [{
+      src: 'cases',
+      dst: 'Cumulative Cases',
+    }, {
+      src: 'deaths',
+      dst: 'Cumulative Deaths',
+    }],
+  };
+
   L.Control.InfoCard = L.Control.extend({
     onAdd: function(map) {
       this._div = $(INFO_CARD_HTML)[0];
@@ -107,15 +192,82 @@ jQuery(function($) {
       me.toggleClass('hidden', !feature);
       if (feature) {
         me.html(TEMPLATES.run('info_card_body', {
-          name: feature.properties.NAME || feature.properties.name,
+          name: feature.properties.name,
+          body: this.make_body(feature.properties),
         }));
       }
+    },
+
+    make_body: function(props) {
+      var set = (props.type == 'state') ? 'states' : 'counties',
+          md = METADATA ? METADATA[set][props.id].current : null;
+      console.log(md);
+
+      return '<dl>' + INFO_CARD_PROPS.map(
+        p => ({
+          key: p.dst,
+          val: p.format ? p.format(props[p.src]) : props[p.src],
+          unit: p.unit || '',
+        })
+      ).concat(md ? INFO_CARD_CURRENT[props.type].map(
+        p => (md[p.src] ? {
+          key: p.dst,
+          val: p.format ? p.format(md[p.src]) : md[p.src],
+          unit: p.unit || '',
+        } : null)
+      ) : []).map(
+        row => row ? TEMPLATES.run('info_card_row', row) : ''
+      ).join('') + '</dl>';
     },
   });
 
   L.control.infocard = function(opts) {
     return new L.Control.InfoCard(opts);
   };
+
+  var Active = (function() {
+    var list = [];
+
+    function add(id) {
+      list = list.filter(cmp_id => (cmp_id !== id)).concat([id]);
+      return this;
+    }
+
+    function rm(id) {
+      list = list.filter(cmp_id => (cmp_id !== id));
+    }
+
+    function has(id) {
+      return list.indexOf(id) !== -1;
+    }
+
+    function toggle(id) {
+      var is_active = has(id);
+
+      if (is_active) {
+        rm(id);
+      } else {
+        add(id);
+      }
+
+      return !is_active;
+    }
+
+    function set(ids) {
+      list = [].concat(ids);
+    }
+
+    return {
+      add: add,
+      rm: rm,
+      has: has,
+      toggle: toggle,
+      set: set,
+      log: function() {
+        console.log(list);
+      },
+    };
+  })();
 
   // initialize Leaflet
   var map = L.map('map').setView([37.8, -96], 4);
@@ -130,7 +282,8 @@ jQuery(function($) {
   var geojson = { data: {}, layers: {} };
   [{
     id:   'states',
-    url:  'data/us-states.json',
+    // url:  'data/us-states.json',
+    url:  'data/states-20m.json',
     show: true,
 
     normalize: function(feature) {
@@ -143,12 +296,13 @@ jQuery(function($) {
     },
   }, {
     id:   'counties',
-    url:  'data/us-counties-5m.json',
+    // url:  'data/us-counties-5m.json',
+    url:  'data/counties-5m.json',
 
     normalize: function(feature) {
-      var name = feature.properties.NAME;
+      var name = feature.properties.name;
       return {
-        id:   feature.properties.GEOM_ID,
+        id:   feature.properties.id,
         name: name,
         q:    normalize(name),
       };
@@ -180,7 +334,7 @@ jQuery(function($) {
               info.update(ev.target.feature);
               ev.target.setStyle({
                 weight: 5,
-                strokeColor: '#666',
+                strokeColor: '#38f',
                 dashArray: '',
                 fillOpacity: 0.7
               });
@@ -190,6 +344,32 @@ jQuery(function($) {
               info.update();
               // console.log(ev);
               layer.resetStyle(ev.target);
+              if (Active.has(ev.target.feature.id)) {
+                ev.target.setStyle({
+                  stroke: true,
+                  color: '#666',
+                  fill: true,
+                });
+              }
+            },
+
+            click: function(ev) {
+              var id = ev.target.feature.id,
+                  is_active = Active.toggle(id);
+
+              ev.target.setStyle({
+                stroke: true,
+                color: is_active ? '#000' : '#38f',
+                fillColor: '#3388ff',
+              });
+
+              Active.log();
+            },
+
+            contextmenu: function(ev) {
+              $('#loc-info-dialog').data({
+                properties: ev.target.feature.properties,
+              }).modal('show');
             },
           });
         },
@@ -219,6 +399,13 @@ jQuery(function($) {
 
   // show the scale bar on the lower left corner
   L.control.scale().addTo(map);
+
+  // load metadata
+  var METADATA = null;
+  fetch('data/data.json').then(r => r.json()).then(function(data) {
+    console.log('metadata loaded');
+    METADATA = data;
+  });
 
   $('#map').on('click', 'button[data-id="map-home"]', function() {
     map.setView([37.8, -96], 4);
@@ -324,4 +511,124 @@ jQuery(function($) {
       }
     });
   })();
+
+  var LOC_INFO_PROPS = [{
+    src: 'id',
+    dst: 'FIPS Code',
+    tip: 'Federal Information Processing Standard identifier',
+  }, {
+    src: 'population',
+    dst: 'Population (2019)',
+    tip: 'Estimated 2019 population',
+    format: v => number_format(v),
+  }, {
+    src: 'density',
+    dst: 'Population Density (2019)',
+    tip: 'Estimated 2019 people per square mile.',
+    format: v => number_format(v),
+    unit: 'people/mi<sup>2</sup>',
+  }, {
+    src: 'deaths',
+    dst: 'Annual Births (2019)',
+    tip: 'Cumulative 2019 births',
+  }, {
+    src: 'deaths',
+    dst: 'Annual Deaths (2019)',
+    tip: 'Cumulative 2019 deaths',
+  }, {
+    src: 'land_area',
+    dst: 'Land Area',
+    tip: 'Total area in square miles, excluding bodies of water',
+    unit: 'mi<sup>2</sup>',
+  }];
+
+  var LOC_INFO_CURRENT = {
+    state: [{
+      src: 'positiveIncrease',
+      dst: 'New Cases',
+      tip: 'New COVID-19 cases in the last 24 hours'
+    }, {
+      src: 'deathIncrease',
+      dst: 'New Deaths',
+      tip: 'Number of COVID-19 deaths in the last 24 hours'
+    }, {
+      src: 'hospitalizedCurrently',
+      dst: 'Hospitalized, Currently',
+      tip: 'Current Number of COVID-19 patients hospitalized'
+    }, {
+      src: 'hospitalizedCumulative',
+      dst: 'Hospitalized, Cumulative',
+      tip: 'Current Number of COVID-19 patients hospitalized'
+    }, {
+      src: 'inIcuCurrently',
+      dst: 'ICU, Currently',
+      tip: 'Current number of COVID-19 patients in Intensive Care Unit (ICU)'
+    }, {
+      src: 'inIcuCumulative',
+      dst: 'ICU, Cumulative',
+      tip: 'Cumulative number of COVID-19 patients in Intensive Care Unit (ICU)'
+    }, {
+      src: 'onVentilatorCurrently',
+      dst: 'On Ventilator, Currently',
+      tip: 'Current number of COVID-19 patients on ventilators'
+    }, {
+      src: 'onVentilatorCumulative',
+      dst: 'On Ventilator, Cumulative',
+      tip: 'Cumulative number of COVID-19 patients on ventilators'
+    }],
+
+    county: [{
+      src: 'cases',
+      dst: 'Cumulative Cases',
+      tip: 'Cumulative COVID-19 cases'
+    }, {
+      src: 'deaths',
+      dst: 'Cumulative Deaths',
+      tip: 'Cumulative COVID-19 deaths'
+    }],
+  };
+
+  function get_loc_info_notes(set, id) {
+    var md = METADATA ? METADATA[set][id].metadata : null;
+    return (md && md.notes) ? md.notes : '';
+  }
+
+  function make_loc_info_body(ps) {
+    var set = (ps.type == 'state') ? 'states' : 'counties',
+        md = METADATA ? METADATA[set][ps.id].current : null;
+
+    return TEMPLATES.run('loc_info_body', {
+      body: LOC_INFO_PROPS.map(
+        p => ({
+          key: p.dst,
+          val: p.format ? p.format(ps[p.src]) : ps[p.src],
+          tip: p.tip,
+          unit: p.unit || '',
+        })
+      ).concat(md ? LOC_INFO_CURRENT[ps.type].map(
+        p => (md[p.src] ? {
+          key: p.dst,
+          val: p.format ? p.format(md[p.src]) : md[p.src],
+          tip: p.tip,
+          unit: p.unit || '',
+        } : null)
+      ) : []).map(
+        row => row ? TEMPLATES.run('loc_info_row', row) : ''
+      ).join(''),
+
+      notes: get_loc_info_notes(set, ps.id),
+    });
+
+    "<div class='row'>" +
+      make_loc_info_notes(set, ps.id) +
+    "</div>";
+  }
+
+  $('#loc-info-dialog').on('show.bs.modal', function() {
+    var me = $(this),
+        ps = me.data('properties');
+
+    me.find('.modal-title span').text(ps.name);
+    me.find('.modal-body').html(make_loc_info_body(ps));
+  });
 });

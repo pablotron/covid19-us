@@ -2,11 +2,12 @@
 <html lang='en'>
   <head>
     <meta charset='utf-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'/>
+    <title>COVID-19 in the US</title>
 
     <link rel='stylesheet' type='text/css' href='css/font-awesome-4.7.0/css/font-awesome.min.css'/>
     <link rel='stylesheet' type='text/css' href='js/bootstrap-4.5.0/css/bootstrap.min.css'/>
-    <link rel='stylesheet' type='text/css' href='https://unpkg.com/leaflet@1.6.0/dist/leaflet.css' />
+    <link rel='stylesheet' type='text/css' href='https://unpkg.com/leaflet@1.6.0/dist/leaflet.css'/>
     <style>
       /* html, body {
         height: 100%;
@@ -54,20 +55,20 @@
           <div class='card'>
             <div class='card-header'>
               <div class='btn-toolbar' role='toolbar'>
-                <div 
+                <div
                   class='btn-group mr-2 btn-group-sm hidden'
                   role='group'
                 >
                   <button
                     id='map-home'
-                    class='btn btn-outline-success' 
+                    class='btn btn-outline-success'
                     title='Reset map pan and zoom.'
                   >
                     Home
                   </button><!-- btn -->
                 </div><!-- btn-group -->
 
-                <div 
+                <div
                   class='btn-group mr-2 btn-group-sm btn-group-toggle'
                   data-toggle='buttons'
                   role='group'
@@ -110,13 +111,13 @@
                   </label>
                 </div><!-- btn-group -->
 
-                <div 
+                <div
                   class='btn-group mr-2 btn-group-sm hidden'
                   role='group'
                 >
                   <button
                     id='map-find-btn'
-                    class='btn btn-outline-secondary' 
+                    class='btn btn-outline-secondary'
                     title='Find region by name.'
                     data-toggle='modal'
                     data-target='#map-find-dialog'
@@ -131,7 +132,7 @@
                 >
                   <button
                     id='map-fill-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
+                    class='btn btn-outline-secondary dropdown-toggle'
                     title='Shade map regions by condition.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
@@ -145,7 +146,7 @@
                     class='dropdown-menu'
                     aria-labelledby='map-fill-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='None.'
@@ -162,7 +163,7 @@
                       Cases
                     </h6><!-- dropdown-header -->
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       data-count='cumulative'
@@ -173,7 +174,7 @@
                       Cumulative Cases Per Capita
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Cumulative number of cases.'
@@ -185,7 +186,7 @@
                       Cumulative Cases
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='New cases per capita.'
@@ -197,7 +198,7 @@
                       New Cases Per Capita
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Number of new cases.'
@@ -215,7 +216,7 @@
                       Deaths
                     </h6><!-- dropdown-header -->
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Cumulative deaths per capita'
@@ -227,7 +228,7 @@
                       Cumulative Deaths Per Capita
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Cumulative number of deaths.'
@@ -239,7 +240,7 @@
                       Cumulative Deaths
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='New deaths per capita'
@@ -251,7 +252,7 @@
                       New Deaths Per Capita
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Cumulative number of deaths.'
@@ -271,7 +272,7 @@
                 >
                   <button
                     id='chart-data-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
+                    class='btn btn-outline-secondary dropdown-toggle'
                     title='Choose data to show on chart.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
@@ -285,7 +286,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-data-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Number of cases.'
@@ -295,7 +296,7 @@
                       Cases
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Deaths'
@@ -305,7 +306,7 @@
                       Deaths
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Hospitalizations'
@@ -315,7 +316,7 @@
                       Hospitalizations
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Ventilators'
@@ -326,14 +327,14 @@
                     </a>
                   </div><!-- dropdown-menu -->
                 </div><!-- btn-group -->
-                
+
                 <div
                   class='btn-group mr-2 btn-group-sm'
                   role='group'
                 >
                   <button
                     id='chart-den-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
+                    class='btn btn-outline-secondary dropdown-toggle'
                     title='Adjust measurement by factor.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
@@ -347,7 +348,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-den-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='No adjustment factor'
@@ -359,7 +360,7 @@
 
                     <div class='dropdown-divider'></div>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Divided by 100,000 citizens.'
@@ -369,7 +370,7 @@
                       Population
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Multiplied by population density.'
@@ -379,7 +380,7 @@
                       Population Density
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Divided by number of square miles of land.'
@@ -397,7 +398,7 @@
                 >
                   <button
                     id='chart-count-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
+                    class='btn btn-outline-secondary dropdown-toggle'
                     title='Choose new or cumulative count.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
@@ -411,7 +412,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-count-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Change relative to previous day'
@@ -421,7 +422,7 @@
                       Change (Absolute)
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Percent change relative to previous day'
@@ -431,7 +432,7 @@
                       Change (Percent)
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Cumulative count over time.'
@@ -456,8 +457,8 @@
                 >
                   <button
                     id='chart-days-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
-                    title='Choose chart scale.'
+                    class='btn btn-outline-secondary dropdown-toggle'
+                    title='Choose time interval to display on chart.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
                     aria-expanded='false'
@@ -470,7 +471,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-days-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Last 30 days'
@@ -480,7 +481,7 @@
                       Last 30 Days
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Last 60 days'
@@ -490,7 +491,7 @@
                       Last 60 Days
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Last 90 days'
@@ -500,7 +501,7 @@
                       Last 90 Days
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='All data'
@@ -518,8 +519,8 @@
                 >
                   <button
                     id='chart-scale-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
-                    title='Choose chart scale.'
+                    class='btn btn-outline-secondary dropdown-toggle'
+                    title='Choose scale for Y axis of chart.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
                     aria-expanded='false'
@@ -532,7 +533,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-scale-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Linear scale'
@@ -542,7 +543,7 @@
                       Linear
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='Logarithmic scale'
@@ -560,7 +561,7 @@
                 >
                   <button
                     id='chart-smooth-btn'
-                    class='btn btn-outline-secondary dropdown-toggle' 
+                    class='btn btn-outline-secondary dropdown-toggle'
                     title='Choose chart smoothing.'
                     data-toggle='dropdown'
                     aria-haspopup='true'
@@ -574,7 +575,7 @@
                     class='dropdown-menu'
                     aria-labelledby='chart-smooth-btn'
                   >
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item'
                       title='No smoothing'
@@ -584,7 +585,7 @@
                       None
                     </a>
 
-                    <a 
+                    <a
                       href='#'
                       class='dropdown-item active'
                       title='Show 7 day average'
@@ -603,7 +604,7 @@
     </div><!-- container -->
 
     <div
-      id='map-find-dialog' 
+      id='map-find-dialog'
       class='modal fade'
       tabindex='-1'
       role='dialog'
@@ -674,7 +675,51 @@
       </div><!-- modal-dialog -->
     </div><!-- modal -->
 
+    <div
+      id='loc-info-dialog'
+      class='modal fade'
+      tabindex='-1'
+      role='dialog'
+      aria-labelledby='map-find-dialog-title'
+      aria-hidden='true'
+    >
+      <div class='modal-dialog modal-lg'>
+        <div class='modal-content'>
+          <div class='modal-header'>
+            <h5
+              id='loc-info-dialog-title'
+              class='modal-title'
+            >
+              <i class='fa fa-fw fa-map-o'></i>
+              <span></span>
+            </h5><!-- modal-title -->
+            <button
+              type='button'
+              class='close'
+              data-dismiss='modal'
+              title='Close dialog'
+              aria-label='Close'
+            >
+              <span aria-hidden='true'>&times;</span>
+            </button><!-- close -->
+          </div><!-- modal-title -->
 
+          <div class='modal-body'>
+          </div><!-- modal-body -->
+
+          <div class='modal-footer'>
+            <button
+              type='button'
+              class='btn btn-secondary'
+              title='Close dialog'
+              data-dismiss='modal'
+            >
+              &times; Close
+            </button><!-- btn -->
+          </div><!-- modal-footer -->
+        </div><!-- modal-content -->
+      </div><!-- modal-dialog -->
+    </div><!-- modal -->
 
     <script type='text/javascript' src='js/luigi-template-0.5.0.min.js'></script>
     <script type='text/javascript' src='js/jquery-3.5.1.min.js'></script>
