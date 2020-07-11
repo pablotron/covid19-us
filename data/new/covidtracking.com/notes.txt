@@ -1,0 +1,15 @@
+current US values:
+  * dst: us-current.json
+  * src: https://covidtracking.com/api/v1/us/current.json
+
+states metadata:
+  * dst: states-info.json
+  * src: https://covidtracking.com/api/v1/states/info.json
+
+states current values:
+  * dst: states-current.json
+  * src: https://covidtracking.com/api/v1/states/current.json
+
+states historical values:
+  * dst: states-daily.json
+  * src: https://covidtracking.com/api/v1/states/daily.json
