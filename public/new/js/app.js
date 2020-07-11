@@ -1,6 +1,34 @@
 jQuery(function($) {
   "use strict";
 
+  var CONFIG = {
+    tiles: {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+      config: {
+        maxZoom: 19,
+        attribution: "&copy; <a href='https://openstreetmap.org/copyright'>OpenStreetMap contributors</a>",
+      },
+    },
+
+    map: {
+      home: {
+        pos: [37.8, -96],
+        zoom: 4,
+      },
+
+      controls: {
+        info: {
+          position: 'topright'
+        },
+
+        navbar: {
+          position: 'bottomleft'
+        },
+      },
+    },
+  };
+
   function normalize(s) {
     return (s
       .toLowerCase() // convert to lower case
@@ -295,6 +323,57 @@ jQuery(function($) {
       },
     },
 
+    map: {
+      init: function(css, config) {
+        var home = config.map.home;
+
+        // initialize Leaflet
+        var map = L.map($(css)[0]).setView(home.pos, home.zoom);
+
+        // add the OpenStreetMap tiles
+        L.tileLayer(config.tiles.url, config.tiles.config).addTo(map);
+
+        L.control.navbar(config.map.controls.navbar).addTo(map);
+
+        // show the scale bar on the lower left corner
+        L.control.scale().addTo(map);
+
+        $(css).on('click', 'button[data-id="map-home"]', function() {
+          map.setView(home.pos, home.zoom);
+          $(this).blur();
+          return false;
+        });
+
+        // return map
+        return map;
+      },
+    },
+
+    menus: {
+      init: function() {
+        $('.dropdown-menu').on('click', 'a.dropdown-item', function() {
+          var me = $(this),
+              ul = me.parents('.dropdown-menu'),
+              btn = ul.prev('.dropdown-toggle');
+
+          console.log(me.data());
+
+          // set highlight
+          ul.find('.active').removeClass('active');
+          me.addClass('active');
+
+          // set name
+          btn.find('span').text(me.data('name'));
+
+          // hide dropdown
+          $('body').click();
+
+          // stop event
+          return false;
+        });
+      },
+    },
+
     dialogs: {
       LocFind: {
         init: function(css) {
@@ -495,14 +574,9 @@ jQuery(function($) {
   // init map controls
   UI.controls.init();
 
-  // initialize Leaflet
-  var map = L.map('map').setView([37.8, -96], 4);
-
-  // add the OpenStreetMap tiles
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: "&copy; <a href='https://openstreetmap.org/copyright'>OpenStreetMap contributors</a>"
-  }).addTo(map);
+  // init map and info panel
+  var map = UI.map.init('#map', CONFIG);
+  var info = L.control.infopane(CONFIG.map.controls.info).addTo(map);
 
   // load geojson data and create layers
   var geojson = { data: {}, layers: {} };
@@ -615,28 +689,11 @@ jQuery(function($) {
     });
   });
 
-  var info = L.control.infopane({
-    position: 'topright'
-  }).addTo(map);
-
-  L.control.navbar({
-    position: 'bottomleft'
-  }).addTo(map);
-
-  // show the scale bar on the lower left corner
-  L.control.scale().addTo(map);
-
   // load metadata
   var METADATA = null;
   fetch('data/data.json').then(r => r.json()).then(function(data) {
     console.log('metadata loaded');
     METADATA = data;
-  });
-
-  $('#map').on('click', 'button[data-id="map-home"]', function() {
-    map.setView([37.8, -96], 4);
-    $(this).blur();
-    return false;
   });
 
   $('input[name="map-layer"]').on('layer-loaded', function() {
@@ -659,26 +716,6 @@ jQuery(function($) {
     layer.addTo(map);
   });
 
-  $('.dropdown-menu').on('click', 'a.dropdown-item', function() {
-    var me = $(this),
-        ul = me.parents('.dropdown-menu'),
-        btn = ul.prev('.dropdown-toggle');
-
-    console.log(me.data());
-
-    // set highlight
-    ul.find('.active').removeClass('active');
-    me.addClass('active');
-
-    // set name
-    btn.find('span').text(me.data('name'));
-
-    // hide dropdown
-    $('body').click();
-
-    // stop event
-    return false;
-  });
-
+  UI.menus.init();
   UI.dialogs.init();
 });
