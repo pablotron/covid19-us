@@ -3,6 +3,7 @@ jQuery(function($) {
 
   var CONFIG = {
     tiles: {
+      // tile URL template
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 
       config: {
@@ -11,17 +12,33 @@ jQuery(function($) {
       },
     },
 
+    // geojson layer config
+    geojson: [{
+      id:   'states',
+      // url:  'data/us-states.json',
+      url:  'data/states-20m.json',
+      show: true,
+    }, {
+      id:   'counties',
+      // url:  'data/us-counties-5m.json',
+      url:  'data/counties-5m.json',
+    }],
+
     map: {
+      // home position and zoom
       home: {
         pos: [37.8, -96],
         zoom: 4,
       },
 
+      // map control config
       controls: {
+        // info pane config
         info: {
           position: 'topright'
         },
 
+        // navbar config
         navbar: {
           position: 'bottomleft'
         },
@@ -29,23 +46,25 @@ jQuery(function($) {
     },
   };
 
-  function normalize(s) {
-    return (s
-      .toLowerCase() // convert to lower case
-      .replace(/^\s+|\s+$/g, '') // strip leading/trailing whitespace
-      .replace(/[^a-z0-9]+/g, ' ') // remove non-alphanumeric characters
-    );
-  }
+  var Util = {
+    normalize: function(s) {
+      return (s
+        .toLowerCase() // convert to lower case
+        .replace(/^\s+|\s+$/g, '') // strip leading/trailing whitespace
+        .replace(/[^a-z0-9]+/g, ' ') // remove non-alphanumeric characters
+      );
+    },
 
-  function number_format(v) {
-    if (+v > 1000000) {
-      return (+v / 1000000.0).toFixed(1) + 'M';
-    } else if (v > 1000) {
-      return (+v / 1000.0).toFixed(1) + 'k';
-    } else {
-      return v.toFixed(1);
-    }
-  }
+    pretty: function(v) {
+      if (+v > 1000000) {
+        return (+v / 1000000.0).toFixed(1) + 'M';
+      } else if (v > 1000) {
+        return (+v / 1000.0).toFixed(1) + 'k';
+      } else {
+        return v.toFixed(1);
+      }
+    },
+  };
 
   var TEMPLATES = Luigi.cache({
     find_list_css: [
@@ -165,6 +184,91 @@ jQuery(function($) {
     };
   })();
 
+  var GeoJsonLoader = function(config) {
+    this._config = config;
+  };
+
+  GeoJsonLoader.prototype.load = function(info, on_loaded) {
+    this._config.forEach(function(row) {
+      fetch(row.url).then(r => r.json()).then(function(data) {
+        // populate find list
+        $(TEMPLATES.run('find_list_css', row)).html(data.features.map(
+          f => TEMPLATES.run('find_row', {
+            id: f.properties.id,
+            name: name,
+            q: Util.normalize(f.properties.name),
+          })
+        ).join(''));
+
+        // build map layer
+        var layer = L.geoJson(data, {
+          style: function(feature) {
+            return {
+              weight: 2,
+              opacity: 1,
+              strokeColor: 'white',
+              dashArray: '3',
+              fillOpacity: 0.3,
+              // fillColor: '#0af',
+              // fillColor: getColor(feature.properties.density)
+            };
+          },
+
+          onEachFeature: function(feature, l) {
+            l.on({
+              mouseover: function(ev) {
+                info.update(ev.target.feature);
+                ev.target.setStyle({
+                  weight: 5,
+                  strokeColor: '#38f',
+                  dashArray: '',
+                  fillOpacity: 0.7
+                });
+              },
+
+              mouseout: function(ev) {
+                info.update();
+                // console.log(ev);
+                layer.resetStyle(ev.target);
+                if (Active.has(ev.target.feature.id)) {
+                  ev.target.setStyle({
+                    stroke: true,
+                    color: '#666',
+                    fill: true,
+                  });
+                }
+              },
+
+              click: function(ev) {
+                var id = ev.target.feature.id,
+                    is_active = Active.toggle(id);
+
+                ev.target.setStyle({
+                  stroke: true,
+                  color: is_active ? '#000' : '#38f',
+                  fillColor: '#3388ff',
+                });
+
+                Active.log();
+              },
+
+              contextmenu: function(ev) {
+                $('#loc-info-dialog').data({
+                  properties: ev.target.feature.properties,
+                }).modal('show');
+              },
+            });
+          },
+        });
+
+        if (on_loaded) {
+          // pass to callback
+          on_loaded(row.id, data, layer);
+        }
+      });
+    });
+  };
+
   var UI = {
     controls: {
       NavBar: {
@@ -234,11 +338,11 @@ jQuery(function($) {
           var PROPS = [{
             src: 'population',
             dst: 'Population',
-            format: v => number_format(v),
+            format: v => Util.pretty(v),
           }, {
             src: 'density',
             dst: 'Population Density',
-            format: v => number_format(v),
+            format: v => Util.pretty(v),
             unit: 'people/mi<sup>2</sup>',
           }];
 
@@ -349,6 +453,30 @@ jQuery(function($) {
       },
     },
 
+    layers: {
+      init: function(map, layers) {
+        $('input[name="map-layer"]').on('layer-loaded', function() {
+          var me = $(this);
+          me.prop('disabled', false);
+          me.parent().find('.loading').addClass('hidden');
+        }).click(function() {
+          var id = $(this).val(),
+              layer = layers[id];
+
+          // remove existing layers
+          for (var key in layers) {
+            var tmp = layers[key];
+            if (map.hasLayer(tmp)) {
+              map.removeLayer(tmp);
+            }
+          }
+
+          // add layer
+          layer.addTo(map);
+        });
+      },
+    },
+
     menus: {
       init: function() {
         $('.dropdown-menu').on('click', 'a.dropdown-item', function() {
@@ -419,7 +547,7 @@ jQuery(function($) {
 
                 timeout = setTimeout(function() {
                   // normalize query, split into parts
-                  var qs = normalize(me.val()).split(/[^a-z0-9]/),
+                  var qs = Util.normalize(me.val()).split(/[^a-z0-9]/),
                       els = dialog.find('.list-group-item-action');
 
                   if (qs.length > 0) {
@@ -451,12 +579,12 @@ jQuery(function($) {
           src: 'population',
           dst: 'Population (2019)',
           tip: 'Estimated 2019 population',
-          format: v => number_format(v),
+          format: v => Util.pretty(v),
         }, {
           src: 'density',
           dst: 'Population Density (2019)',
           tip: 'Estimated 2019 people per square mile.',
-          format: v => number_format(v),
+          format: v => Util.pretty(v),
           unit: 'people/mi<sup>2</sup>',
         }, {
           src: 'deaths',
@@ -571,6 +699,9 @@ jQuery(function($) {
     },
   };
 
+  // init geojson loader
+  var loader = new GeoJsonLoader(CONFIG.geojson);
+
   // init map controls
   UI.controls.init();
 
@@ -578,143 +709,31 @@ jQuery(function($) {
   var map = UI.map.init('#map', CONFIG);
   var info = L.control.infopane(CONFIG.map.controls.info).addTo(map);
 
-  // load geojson data and create layers
+  // load geojson layers
   var geojson = { data: {}, layers: {} };
-  [{
-    id:   'states',
-    // url:  'data/us-states.json',
-    url:  'data/states-20m.json',
-    show: true,
+  loader.load(info, function(id, data, layer) {
+    // cache data and layer
+    geojson.data[id] = data;
+    geojson.layers[id] = layer;
 
-    normalize: function(feature) {
-      var name = feature.properties.name;
-      return {
-        id: feature.id,
-        name: name,
-        q: normalize(name),
-      };
-    },
-  }, {
-    id:   'counties',
-    // url:  'data/us-counties-5m.json',
-    url:  'data/counties-5m.json',
+    // enable button
+    var css = 'input[name="map-layer"][value="' + id + '"]';
+    $(css).trigger('layer-loaded');
 
-    normalize: function(feature) {
-      var name = feature.properties.name;
-      return {
-        id:   feature.properties.id,
-        name: name,
-        q:    normalize(name),
-      };
-    },
-  }].forEach(function(row) {
-    fetch(row.url).then(r => r.json()).then(function(data) {
-      // populate find list
-      $(TEMPLATES.run('find_list_css', row)).html(data.features.map(
-        f => TEMPLATES.run('find_row', row.normalize(f))
-      ).join(''));
-
-      // build map layer
-      var layer = L.geoJson(data, {
-        style: function(feature) {
-          return {
-            weight: 2,
-            opacity: 1,
-            strokeColor: 'white',
-            dashArray: '3',
-            fillOpacity: 0.3,
-            // fillColor: '#0af',
-            // fillColor: getColor(feature.properties.density)
-          };
-        },
-
-        onEachFeature: function(feature, l) {
-          l.on({
-            mouseover: function(ev) {
-              info.update(ev.target.feature);
-              ev.target.setStyle({
-                weight: 5,
-                strokeColor: '#38f',
-                dashArray: '',
-                fillOpacity: 0.7
-              });
-            },
-
-            mouseout: function(ev) {
-              info.update();
-              // console.log(ev);
-              layer.resetStyle(ev.target);
-              if (Active.has(ev.target.feature.id)) {
-                ev.target.setStyle({
-                  stroke: true,
-                  color: '#666',
-                  fill: true,
-                });
-              }
-            },
-
-            click: function(ev) {
-              var id = ev.target.feature.id,
-                  is_active = Active.toggle(id);
-
-              ev.target.setStyle({
-                stroke: true,
-                color: is_active ? '#000' : '#38f',
-                fillColor: '#3388ff',
-              });
-
-              Active.log();
-            },
-
-            contextmenu: function(ev) {
-              $('#loc-info-dialog').data({
-                properties: ev.target.feature.properties,
-              }).modal('show');
-            },
-          });
-        },
-      });
-
-      geojson.data[row.id] = data;
-      geojson.layers[row.id] = layer;
-
-      return layer;
-    }).then(function(layer) {
-      if (row.show) {
-        layer.addTo(map);
-      }
-    }).then(function() {
-      var css = 'input[name="map-layer"][value="' + row.id + '"]';
-      $(css).trigger('layer-loaded');
-    });
+    if (id == 'states') {
+      // add layer
+      layer.addTo(map);
+    }
   });
 
   // load metadata
   var METADATA = null;
   fetch('data/data.json').then(r => r.json()).then(function(data) {
-    console.log('metadata loaded');
     METADATA = data;
   });
 
-  $('input[name="map-layer"]').on('layer-loaded', function() {
-    var me = $(this);
-    me.prop('disabled', false);
-    me.parent().find('.loading').addClass('hidden');
-  }).click(function() {
-    var id = $(this).val(),
-        layer = geojson.layers[id];
-
-    // remove existing layers
-    for (var key in geojson.layers) {
-      var tmp = geojson.layers[key];
-      if (map.hasLayer(tmp)) {
-        map.removeLayer(tmp);
-      }
-    }
-
-    // add layer
-    layer.addTo(map);
-  });
+  // init layer buttons
+  UI.layers.init(map, geojson.layers);
 
   UI.menus.init();
   UI.dialogs.init();
