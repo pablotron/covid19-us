@@ -9,6 +9,16 @@ jQuery(function($) {
     );
   }
 
+  function number_format(v) {
+    if (+v > 1000000) {
+      return (+v / 1000000.0).toFixed(1) + 'M';
+    } else if (v > 1000) {
+      return (+v / 1000.0).toFixed(1) + 'k';
+    } else {
+      return v.toFixed(1);
+    }
+  }
+
   var TEMPLATES = Luigi.cache({
     find_list_css: [
       '#loc-find-dialog .list-group-wrap[data-id="%{id}"] .list-group'
@@ -27,7 +37,7 @@ jQuery(function($) {
       "</a>",
     ],
 
-    info_card_body: [
+    info_pane_body: [
       "<div class='card-body'>",
         "<h6 class='card-title'>",
           "%{name|h}",
@@ -37,7 +47,7 @@ jQuery(function($) {
       "</div>",
     ],
 
-    info_card_row: [
+    info_pane_row: [
       "<dt>%{key|h}</dt>",
       "<dd>%{val|h} %{unit}</dd>",
     ],
@@ -83,148 +93,6 @@ jQuery(function($) {
     ],
   });
 
-  var CONTROL_BAR_HTML = [
-    "<div class='btn-toolbar ml-2 mt-1'>",
-      "<div class='btn-group btn-group-sm mr-1'>",
-        "<button ",
-          "data-id='map-home' ",
-          "class='btn btn-light border-dark shadow-sm' ",
-          "title='Center map and reset zoom' ",
-        ">",
-          "<i class='fa fa-fw fa-home'></i>",
-          // " ",
-          // "Home",
-        "</button>",
-      "</div>",
-
-      "<div class='btn-group btn-group-sm mr-2'>",
-        "<button ",
-          "class='btn btn-light border-dark shadow-sm'  ",
-          "title='Find region by name.' ",
-          "data-id='loc-find' ",
-          "data-toggle='modal' ",
-          "data-target='#loc-find-dialog' ",
-        ">",
-          "<i class='fa fa-fw fa-search'></i>",
-          // " ",
-          // "Find&hellip;",
-        "</button>",
-      "</div>",
-
-      "<div class='btn-group btn-group-sm mr-2 hidden'>",
-        "<button ",
-          "data-id='map-reset' ",
-          "class='btn btn-light' ",
-          "title='Clear selections' ",
-        ">",
-          "Reset",
-        "</button>",
-      "</div>",
-    "</div>",
-  ].join('');
-
-  L.Control.ControlBar = L.Control.extend({
-    onAdd: function(map) {
-      return $(CONTROL_BAR_HTML)[0];
-    },
-  });
-
-  L.control.controlbar = function(opts) {
-    return new L.Control.ControlBar(opts);
-  };
-
-  function number_format(v) {
-    if (+v > 1000000) {
-      return (+v / 1000000.0).toFixed(1) + 'M';
-    } else if (v > 1000) {
-      return (+v / 1000.0).toFixed(1) + 'k';
-    } else {
-      return v.toFixed(1);
-    }
-  }
-
-  var INFO_CARD_HTML = [
-    "<div class='card shadow p-0'>",
-    "</div>",
-  ].join('');
-
-  var INFO_CARD_PROPS = [{
-    src: 'population',
-    dst: 'Population',
-    format: v => number_format(v),
-  }, {
-    src: 'density',
-    dst: 'Population Density',
-    format: v => number_format(v),
-    unit: 'people/mi<sup>2</sup>',
-  }];
-
-  var INFO_CARD_CURRENT = {
-    state: [{
-      src: 'positiveIncrease',
-      dst: 'New Cases',
-    }, {
-      src: 'hospitalizedCurrently',
-      dst: 'Currently Hospitalized',
-    }, {
-      src: 'deathIncrease',
-      dst: 'New Deaths',
-    }],
-
-    county: [{
-      src: 'cases',
-      dst: 'Cumulative Cases',
-    }, {
-      src: 'deaths',
-      dst: 'Cumulative Deaths',
-    }],
-  };
-
-  L.Control.InfoCard = L.Control.extend({
-    onAdd: function(map) {
-      this._div = $(INFO_CARD_HTML)[0];
-      this.update();
-      return this._div;
-    },
-
-    update: function(feature) {
-      var me = $(this._div);
-      me.toggleClass('hidden', !feature);
-      if (feature) {
-        me.html(TEMPLATES.run('info_card_body', {
-          name: feature.properties.name,
-          body: this.make_body(feature.properties),
-        }));
-      }
-    },
-
-    make_body: function(props) {
-      var set = (props.type == 'state') ? 'states' : 'counties',
-          md = METADATA ? METADATA[set][props.id].current : null;
-      console.log(md);
-
-      return '<dl>' + INFO_CARD_PROPS.map(
-        p => ({
-          key: p.dst,
-          val: p.format ? p.format(props[p.src]) : props[p.src],
-          unit: p.unit || '',
-        })
-      ).concat(md ? INFO_CARD_CURRENT[props.type].map(
-        p => (md[p.src] ? {
-          key: p.dst,
-          val: p.format ? p.format(md[p.src]) : md[p.src],
-          unit: p.unit || '',
-        } : null)
-      ) : []).map(
-        row => row ? TEMPLATES.run('info_card_row', row) : ''
-      ).join('') + '</dl>';
-    },
-  });
-
-  L.control.infocard = function(opts) {
-    return new L.Control.InfoCard(opts);
-  };
-
   var Active = (function() {
     var list = [];
 
@@ -268,6 +136,168 @@ jQuery(function($) {
       },
     };
   })();
+
+  var UI = {
+    controls: {
+      NavBar: {
+        init: (function() {
+          var HTML = [
+            "<div class='btn-toolbar ml-2 mt-1'>",
+              "<div class='btn-group btn-group-sm mr-1'>",
+                "<button ",
+                  "data-id='map-home' ",
+                  "class='btn btn-light border-dark shadow-sm' ",
+                  "title='Center map and reset zoom' ",
+                ">",
+                  "<i class='fa fa-fw fa-home'></i>",
+                  // " ",
+                  // "Home",
+                "</button>",
+              "</div>",
+
+              "<div class='btn-group btn-group-sm mr-2'>",
+                "<button ",
+                  "class='btn btn-light border-dark shadow-sm'  ",
+                  "title='Find region by name.' ",
+                  "data-id='loc-find' ",
+                  "data-toggle='modal' ",
+                  "data-target='#loc-find-dialog' ",
+                ">",
+                  "<i class='fa fa-fw fa-search'></i>",
+                  // " ",
+                  // "Find&hellip;",
+                "</button>",
+              "</div>",
+
+              "<div class='btn-group btn-group-sm mr-2 hidden'>",
+                "<button ",
+                  "data-id='map-reset' ",
+                  "class='btn btn-light' ",
+                  "title='Clear selections' ",
+                ">",
+                  "Reset",
+                "</button>",
+              "</div>",
+            "</div>",
+          ].join('');
+
+          // expose init function
+          return function() {
+            L.Control.NavBar = L.Control.extend({
+              onAdd: function(map) {
+                return $(HTML)[0];
+              },
+            });
+
+            L.control.navbar = function(opts) {
+              return new L.Control.NavBar(opts);
+            };
+          };
+        })(),
+      },
+
+      InfoPane: {
+        init: (function() {
+          var HTML = [
+            "<div class='card shadow p-0'>",
+            "</div>",
+          ].join('');
+
+          var PROPS = [{
+            src: 'population',
+            dst: 'Population',
+            format: v => number_format(v),
+          }, {
+            src: 'density',
+            dst: 'Population Density',
+            format: v => number_format(v),
+            unit: 'people/mi<sup>2</sup>',
+          }];
+
+          var CURRENT = {
+            state: [{
+              src: 'positiveIncrease',
+              dst: 'New Cases',
+            }, {
+              src: 'hospitalizedCurrently',
+              dst: 'Currently Hospitalized',
+            }, {
+              src: 'deathIncrease',
+              dst: 'New Deaths',
+            }],
+
+            county: [{
+              src: 'cases',
+              dst: 'Cumulative Cases',
+            }, {
+              src: 'deaths',
+              dst: 'Cumulative Deaths',
+            }],
+          };
+
+          function make_body(props) {
+            var set = (props.type == 'state') ? 'states' : 'counties',
+                md = METADATA ? METADATA[set][props.id].current : null;
+            console.log(md);
+
+            return '<dl>' + PROPS.map(
+              p => ({
+                key: p.dst,
+                val: p.format ? p.format(props[p.src]) : props[p.src],
+                unit: p.unit || '',
+              })
+            ).concat(md ? CURRENT[props.type].map(
+              p => (md[p.src] ? {
+                key: p.dst,
+                val: p.format ? p.format(md[p.src]) : md[p.src],
+                unit: p.unit || '',
+              } : null)
+            ) : []).map(
+              row => row ? TEMPLATES.run('info_pane_row', row) : ''
+            ).join('') + '</dl>';
+          }
+
+          function update(el, feature) {
+            var me = $(el);
+            me.toggleClass('hidden', !feature);
+            if (feature) {
+              me.html(TEMPLATES.run('info_pane_body', {
+                name: feature.properties.name,
+                body: make_body(feature.properties),
+              }));
+            }
+          }
+
+          // expose init function
+          return function() {
+            L.Control.InfoPane = L.Control.extend({
+              onAdd: function(map) {
+                this._div = $(HTML)[0];
+                this.update();
+                return this._div;
+              },
+
+              update: function(feature) {
+                update(this._div, feature);
+              },
+            });
+
+            L.control.infopane = function(opts) {
+              return new L.Control.InfoPane(opts);
+            };
+          };
+        })(),
+      },
+
+      init: function() {
+        UI.controls.NavBar.init();
+        UI.controls.InfoPane.init();
+      },
+    },
+  };
+
+  // init map controls
+  UI.controls.init();
 
   // initialize Leaflet
   var map = L.map('map').setView([37.8, -96], 4);
@@ -389,11 +419,11 @@ jQuery(function($) {
     });
   });
 
-  var info = L.control.infocard({
+  var info = L.control.infopane({
     position: 'topright'
   }).addTo(map);
 
-  L.control.controlbar({
+  L.control.navbar({
     position: 'bottomleft'
   }).addTo(map);
 
@@ -454,7 +484,7 @@ jQuery(function($) {
     return false;
   });
 
-  var Dialogs = {
+  UI.dialogs = {
     LocFind: {
       init: function(css) {
         var dialog = $(css);
@@ -643,8 +673,12 @@ jQuery(function($) {
         },
       };
     })(),
+
+    init: function() {
+      UI.dialogs.LocFind.init('#loc-find-dialog');
+      UI.dialogs.LocInfo.init('#loc-info-dialog');
+    },
   };
 
-  Dialogs.LocFind.init('#loc-find-dialog');
-  Dialogs.LocInfo.init('#loc-info-dialog');
+  UI.dialogs.init();
 });
