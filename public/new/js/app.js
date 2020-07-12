@@ -13,16 +13,58 @@ jQuery(function($) {
     },
 
     // geojson layer config
-    geojson: [{
-      id:   'states',
-      // url:  'data/us-states.json',
-      url:  'data/states-20m.json',
-      show: true,
-    }, {
-      id:   'counties',
-      // url:  'data/us-counties-5m.json',
-      url:  'data/counties-5m.json',
-    }],
+    geojson: {
+      layers: [{
+        id:   'states',
+        // url:  'data/us-states.json',
+        url:  'data/states-20m.json',
+        show: true,
+      }, {
+        id:   'counties',
+        // url:  'data/us-counties-5m.json',
+        url:  'data/counties-5m.json',
+      }],
+
+      styles: {
+        'default': {
+          weight: 2,
+          opacity: 1,
+          strokeColor: 'white',
+          dashArray: '3',
+          fillOpacity: 0.3,
+          // fillColor: '#0af',
+          // fillColor: getColor(feature.properties.density)
+        },
+
+        hover: {
+          weight: 5,
+          stroke: true,
+          strokeColor: '#38f',
+          dashArray: '',
+          fill: true,
+          fillOpacity: 0.7,
+          fillColor: '#38f',
+        },
+
+        active: {
+          weight: 4,
+          stroke: true,
+          color: '#f00',
+          dashArray: '',
+          fill: true,
+          fillColor: '#38f',
+        },
+
+        active_hover: {
+          weight: 5,
+          stroke: true,
+          color: '#f00',
+          dashArray: '',
+          fill: true,
+          fillColor: '#ff0',
+        },
+      },
+    },
 
     map: {
       // home position and zoom
@@ -182,7 +224,8 @@ jQuery(function($) {
   };
 
   GeoJsonLoader.prototype.load = function(info, active, on_loaded) {
-    this._config.forEach(function(row) {
+    var styles = this._config.styles;
+    this._config.layers.forEach(function(row) {
       fetch(row.url).then(r => r.json()).then(function(data) {
         // populate find list
         $(TEMPLATES.run('find_list_css', row)).html(data.features.map(
@@ -196,52 +239,35 @@ jQuery(function($) {
         // build map layer
         var layer = L.geoJson(data, {
           style: function(feature) {
-            return {
-              weight: 2,
-              opacity: 1,
-              strokeColor: 'white',
-              dashArray: '3',
-              fillOpacity: 0.3,
-              // fillColor: '#0af',
-              // fillColor: getColor(feature.properties.density)
-            };
+            return styles['default'];
           },
 
           onEachFeature: function(feature, l) {
             l.on({
               mouseover: function(ev) {
+                var is_active = active.has(ev.target.feature.id),
+                    style = styles[is_active ? 'active_hover' : 'hover'];
+
+                layer.resetStyle(ev.target);
+                ev.target.setStyle(style);
                 info.update(ev.target.feature);
-                ev.target.setStyle({
-                  weight: 5,
-                  strokeColor: '#38f',
-                  dashArray: '',
-                  fillOpacity: 0.7
-                });
               },
 
               mouseout: function(ev) {
-                info.update();
-                // console.log(ev);
+                var is_active = active.has(ev.target.feature.id),
+                    style = styles[is_active ? 'active' : 'default'];
+
                 layer.resetStyle(ev.target);
-                if (active.has(ev.target.feature.id)) {
-                  ev.target.setStyle({
-                    stroke: true,
-                    color: '#666',
-                    fill: true,
-                  });
-                }
+                ev.target.setStyle(style);
+                info.update();
               },
 
               click: function(ev) {
-                var id = ev.target.feature.id,
-                    is_active = active.toggle(id);
+                var is_active = active.toggle(ev.target.feature.id),
+                    style = styles[is_active ? 'active_hover' : 'hover'];
 
-                ev.target.setStyle({
-                  stroke: true,
-                  color: is_active ? '#000' : '#38f',
-                  fillColor: '#3388ff',
-                });
-
+                layer.resetStyle(ev.target);
+                ev.target.setStyle(style);
                 active.log();
               },
 
